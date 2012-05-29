@@ -1,0 +1,60 @@
+package trionesII.sql;
+
+import java.util.List;
+import java.util.ArrayList;
+/*
+// header - edit "Data/yourJavaHeader" to customize
+// contents - edit "EventHandlers/Java file/onCreate" to customize
+//
+*/
+class PreparedCondition
+{	int _Relation;
+	String _CndSyntax = "";
+	List _CndVals = new ArrayList();
+	
+	public PreparedCondition(int rela,String cndSyntax,List vals)
+	{	setRelation(rela);
+		setCndSyntax(cndSyntax);
+		addCndValues(vals);
+	}
+	
+	public PreparedCondition(int rela,String cndSyntax,Object val)
+	{	setRelation(rela);
+		setCndSyntax(cndSyntax);
+		addCndValue(val);
+	}
+	
+	public PreparedCondition(int rela,String cndSyntax)
+	{	setRelation(rela);
+		setCndSyntax(cndSyntax);
+	}
+	
+	public void setRelation(int rela)
+	{	_Relation = rela;
+	}
+	
+	public int getRelation()
+	{	return _Relation;
+	}
+	
+	public void setCndSyntax(String cndSyntax)
+	{	_CndSyntax = cndSyntax;
+	}
+	
+	public String getCndSyntax()
+	{	return _CndSyntax;
+	}
+	
+	public void addCndValue(Object obj)
+	{	_CndVals.add(obj);
+	}
+	
+	public void addCndValues(List objs)
+	{	_CndVals.addAll(objs);
+	}
+	
+	public List getCndValueList()
+	{	return _CndVals;
+	}
+}
+

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="GB2312"?>
+<project name="publishZip" default="final" basedir=".">
+<description>与ZIP配套使用的版本发布程序（作者：吴勇庆）</description>
+
+<!-- =========================参数定义========================= -->
+
+<!--
+<property name="PROJECT_NAME" value="WSTCC"/>
+<property file="./env.properties"/>
+-->
+
+<!-- =========================默认设置========================= -->
+<property name="APP_HOME" value=".."/>
+<property name="BACKUP_HOME" value="${APP_HOME}/bak"/>
+<property name="RELEASE_HOME" value="${APP_HOME}/release"/>
+
+<!-- =========================初始任务========================= -->
+<target name="init">
+
+<echo>执行publishZip.xml=================</echo>
+
+</target>
+
+<!-- =========================核心任务========================= -->
+<target name="main" depends="init">
+
+<echo>01.释放源代码包=======================</echo>
+<unzip dest="${RELEASE_HOME}" overwrite="yes">
+	<fileset dir="${RELEASE_HOME}" includes="*.ZIP,*.zip" />
+</unzip>
+
+<echo>02.执行构造程序=======================</echo>
+<ant antfile="build.xml" output="build.log" />
+
+<echo>03.备份原始记录=======================</echo>
+<move todir="${BACKUP_HOME}" preservelastmodified="true" overwrite="true" >
+	<fileset dir="${RELEASE_HOME}" includes="*.ZIP,*.zip" />
+</move>
+
+<echo>04.还原工作目录=======================</echo>
+<delete includeEmptyDirs="true">
+	<fileset dir="${RELEASE_HOME}" includes="**/*" defaultexcludes="no"/>
+</delete>
+
+</target>
+
+<!-- =========================后续任务========================= -->
+<target name="final" depends="main">
+
+<echo>完成publishZip.xml=================</echo>
+
+</target>
+<!-- =========================工程结尾========================= -->
+</project>

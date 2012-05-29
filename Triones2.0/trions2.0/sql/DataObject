@@ -1,0 +1,146 @@
+package triones.sql;
+
+
+/**
+* <img src="important.gif" width="20" height="20" border="0">数据对象（创建于 2003.01.15）.
+<DL>
+<DT><B>对象概述：</B><DD>
+<pre>
+数据对象指可以提供数据库特征的对象。
+
+数据库特征包括：
+
+关键字信息:getPKSyntax()
+条件属性信息:getCndFieldSyntax()
+只读属性信息:getReadOnlyFieldSyntax()
+SQL语义规则:getSQLRule()
+
+DataObject可以被DataObjectTrans作为操作元素，按约定规则向数据库进行读写访问.
+其数据库指令集的实现规则依赖于SQLObject.
+
+</pre>
+<DT><B>使用说明：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>名词解释：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>注意事项：</B><DD>
+<pre>
+基于JDK1.3
+</pre>
+<DT><B>展望未来：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>联系方式：</B><DD>
+<pre>
+ email：wyq@triok.com 
+ 电  话:021-68672222-2013
+</pre>
+</DL>
+* @author	吴勇庆
+* @version	2003.01.15
+	@see DataObjectTrans
+	@see SQLObject
+*/
+public interface DataObject
+{
+	/**
+ 	* 获取数据对象的关键字属性表达式（创建于2003.01.15）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	如果有多个属性，则属性之间采用SQLObject.FIELDNAME_APART分隔。
+	例如：id,name 代表以id和name为关键字.
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2003.01.15.
+	</pre>
+	</DL>
+* @return 关键字属性表达式.
+*/
+	public String getPKSyntax();
+	
+	/**
+ 	* 获取数据对象的条件属性表达式（创建于2003.01.15）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	如果有多个属性，则属性之间采用SQLObject.FIELDNAME_APART分隔。
+	多个条件属性之间的关系是AND.
+	
+	例如：id,name 代表以id和name为条件属性.
+	
+	返回* 代表所有属性都作为条件.
+	返回空字符串代表所有属性都不作为条件.
+	返回null代表属性值非null的都作为条件.
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2003.01.15.
+	</pre>
+	</DL>
+* @return 条件属性表达式.
+*/
+	public String getCndFieldSyntax();
+	
+	/**
+ 	* 获取数据对象的只读属性表达式（创建于2003.01.15）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	如果有多个属性，则属性之间采用SQLObject.FIELDNAME_APART分隔。
+	例如：id,name 代表以id和name为只读属性.
+	
+	返回* 代表所有属性都作为只读属性.
+	返回空字符串代表所有属性都不作为只读属性.
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2003.01.15.
+	</pre>
+	</DL>
+* @return 只读属性表达式.
+*/
+	public String getReadOnlyFieldSyntax();
+	/**
+	 * 取命名规则（创建于 2003.01.15）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	命名规则用于映射类与库表，PUBLIC属性与库表字段之间的对应关系。
+	返回null代表采用默认的命名规则。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2003.01.15.
+	</pre>
+	</DL>
+* @return 命名规则.
+	@see SQLRule
+*/	
+	public SQLRule getSQLRule();
+
+
+}
+

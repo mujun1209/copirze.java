@@ -1,0 +1,552 @@
+package triones.sql;
+
+import triones.util.*;
+
+import java.sql.*;
+import java.util.List;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+
+/**<img src="modified.gif" width="32" height="32" border="0">数据库存储类（创建于2002.07.22）.
+<DL>
+<DT><B>对象概述：</B><DD>
+<pre>
+    帮助开发人员简化数据库存取,代替SQLObject接口.
+
+    长久以来,SQLObject虽然提出了从数据库角度存取记录的设计模式,但由于缺乏应用实例,
+因此没有得到大多数开发人员的认可.
+
+    DataStore实际上是从另一个角度来制订存取记录的设计模式,它站在应用角度,并与DBTrans
+相结合,带来了全新的数据库存取观念.
+</pre>
+<DT><B>使用说明：</B><DD>
+<pre>
+以下代码用于实现一个能对数据库表OSIE_METHOD进行各项操作的类。
+该类中各公共变量名与表的字段名（忽略大小写）对应。
+
+public class OSIE_METHOD extends DataStore
+{	//自增变量
+	public long ID;
+	//服务名称
+	public String svrName;
+	//方法名称
+	public String methodName;
+	//注释
+	public String rem;
+	//请求格式
+	public String reqXSD;
+	//结果格式
+	public String respXSD;
+	
+
+	//构造方法
+	public OSIE_METHOD()
+	{ //以"svrName,methodName"为关键字
+		setPrimaryKey("svrName,methodName");
+		//ID为自增变量，因此在增改时不影响该属性的值
+		setReadOnlyFields("ID");
+		//可以通过setSQLRule(SQLRule)设置类、字段与库表、字段间的映射关系
+	}
+}
+
+</pre>
+<DT><B>注意事项：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>展望未来：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>联系方式：</B><DD>
+<pre>
+ email：wyq@triok.com 
+ 电  话:021-68672222-2013
+</pre>
+</DL>
+*@author	吴勇庆
+*@version 2002.07.03
+*/
+class DataStore
+{	
+	Transaction _Trans;
+	
+	public DataStore(Transaction trans)
+	{	_Trans = trans;
+	}
+	
+	public String getSQLSyntax()
+	{	return _Trans.getSQLSyntax();
+	}
+	
+	public void commit()
+		throws SQLException
+	{	_Trans.commit();
+	}
+	
+	public void rollback()
+		throws SQLException
+	{	_Trans.rollback();
+	}
+	
+	public boolean isAutoCommit()
+		throws SQLException
+	{	return _Trans.getAutoCommit();
+	}
+
+	/**
+	 * 保存当前对象的信息（创建于2002.07.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	如果该对象关键字信息已存在,则覆盖；
+	如果不存在，则新增。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.22.
+	</pre>
+	</DL>
+* @param data 数据对象实例.
+* @exception SQLException 数据库错误.
+* @exception NoSuchFieldException 关键字定义错误.
+*/
+	public void save(DataObject data)
+		throws SQLException,NoSuchFieldException
+	{	SQLObject lSQLObject = toPKSQLObject(data);
+		
+		lSQLObject.hideFields(data.getReadOnlyFieldSyntax());
+		
+		if(exists(data))
+			_Trans.update(lSQLObject);			
+		else
+			_Trans.insert(lSQLObject);
+	}
+	
+
+	/**
+	 * 根据关键字获取对象信息（创建于2002.07.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.22.
+	</pre>
+	</DL>
+* @param data 数据对象.
+  @return true代表成功，false代表没找到该记录.
+* @exception SQLException 数据库错误.
+* @exception NoSuchFieldException 关键字定义错误.
+* @exception IllegalAccessException 不是公共属性.
+* @exception InstantiationException description.
+*/
+	public Object get(DataObject data)
+		throws SQLException,NoSuchFieldException,IllegalAccessException,InstantiationException
+	{	SQLObject lSQLObject = toPKSQLObject(data);
+	
+		return _Trans.select(lSQLObject).toObject(1,lSQLObject.getFactory());
+		
+	}
+	
+	
+
+	/**
+	 * 判断该关键字的记录是否已存在（创建于2002.07.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.22.
+	</pre>
+	</DL>
+* @param data 数据对象.
+* @return true代表存在，false代表不存在.
+* @exception SQLException 数据库错误.
+* @exception NoSuchFieldException 关键字定义错误.
+*/
+	public boolean exists(DataObject data)
+		throws SQLException,NoSuchFieldException
+	{	SQLObject lSQLObject = toPKSQLObject(data);
+		return _Trans.getRowCount(lSQLObject) > 0;
+	}
+	/**
+	 * 根据关键字修改对象信息（创建于2002.07.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.22.
+	</pre>
+	</DL>
+* @param data 数据对象.
+* @exception SQLException 数据库错误.
+* @exception NoSuchFieldException 关键字定义错误.
+*/
+	public void set(DataObject data)
+		throws SQLException,NoSuchFieldException
+	{	SQLObject lSQLObject = toPKSQLObject(data);
+		lSQLObject.hideFields(data.getReadOnlyFieldSyntax());
+		_Trans.update(lSQLObject);			
+	}
+	
+	/**
+	 * 根据关键字删除对象（创建于2002.07.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.22.
+	</pre>
+	</DL>
+* @param data 数据对象.
+* @exception SQLException 数据库错误.
+* @exception NoSuchFieldException 关键字定义错误.
+*/
+	
+	public void del(DataObject data)
+		throws SQLException,NoSuchFieldException
+	{	SQLObject lSQLObject = toPKSQLObject(data);
+		_Trans.delete(lSQLObject);	
+	}
+	 
+
+	/**
+	 * 将对象新增到数据库中（创建于2002.07.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.22.
+	</pre>
+	</DL>
+* @param data 数据对象.
+* @exception SQLException 数据库错误.
+*/
+	public void add(DataObject data)
+		throws SQLException,NoSuchFieldException
+	{	SQLObject lSQLObject = new SQLObject(data);			
+		lSQLObject.hideFields(data.getReadOnlyFieldSyntax());			
+		_Trans.insert(lSQLObject);
+	}
+	
+	/**
+	 * 根据对象条件属性查询（创建于2002.07.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	条件属性之间采用"AND"关系。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.22.
+	</pre>
+	</DL>
+* @param data 数据对象.
+* @return 符合条件属性的对象集.
+* @exception SQLException 数据库错误.
+  @exception NoSuchFieldException 属性不存在.
+* @throws IllegalAccessException 对应类的属性值必须初始化。
+* @throws InstantiationException 对应类不存在，或者是一个抽象类，或者构造函数全都有参数。
+*/
+	public List list(DataObject data)
+		throws SQLException,NoSuchFieldException,IllegalAccessException,InstantiationException
+	{ SQLObject lSQLObject = toCndSQLObject(data);
+			
+		return _Trans.select(lSQLObject).toList(lSQLObject.getFactory());
+	}
+
+		/**
+	 * 根据对象条件属性查询（创建于2002.08.16）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+		条件属性之间采用"AND"关系。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.16.
+	</pre>
+	</DL>
+* @param data 数据对象.
+* @param beginIndex 从第几个记录开始，范围为1..记录总数.
+* @param rows >0 向后取几条记录，<0 向前取几条记录.
+* @return 符合条件属性的对象集.
+* @exception SQLException 数据库错误.
+  @exception NoSuchFieldException 属性不存在.
+* @throws IllegalAccessException 对应类的属性值必须初始化。
+* @throws InstantiationException 对应类不存在，或者是一个抽象类，或者构造函数全都有参数。
+*/
+	public List list(DataObject data,int beginIndex,int rows)
+		throws SQLException,NoSuchFieldException,IllegalAccessException,InstantiationException
+	{ SQLObject lSQLObject = toCndSQLObject(data);
+		
+		return _Trans.select(lSQLObject,beginIndex,rows).toList(lSQLObject.getFactory());
+	}
+
+	/**
+	 * 删除符合条件属性的记录（创建于2002.07.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	条件属性根据DataObject.getCndFieldSyntax()。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.22.
+	</pre>
+	</DL>
+* @param data 数据对象.
+* @return 删除记录的个数.
+* @exception SQLException 数据库错误.
+* @exception NoSuchFieldException description.
+*/
+	public int remove(DataObject data)
+		throws SQLException,NoSuchFieldException
+	{	SQLObject lSQLObject = toCndSQLObject(data);
+		
+		return _Trans.delete(lSQLObject);
+	}
+	
+
+	/**
+	 *  将符合条件属性的记录修改，使其符合新的属性（创建于2002.07.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	条件属性之间采用"AND"关系。
+	条件属性受oldData.getCndFieldSyntax()影响.
+	修改属性受newData.getReadOnlyFieldSyntax()影响,ReadOnly属性将不被修改.
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.22.
+	</pre>
+	</DL>
+* @param oldData 数据对象.
+* @param newData 包含新条件属性的数据对象.
+* @return 受影响的记录个数.
+* @exception SQLException 数据库错误.
+	@exception NoSuchFieldException description.
+*/
+	public int replace(DataObject oldData,DataObject newData)
+		throws SQLException,NoSuchFieldException
+	{	SQLObject lSQLObject1 = toCndSQLObject(oldData);
+		SQLObject lSQLObject2 = new SQLObject(newData);
+		lSQLObject2.hideFields(newData.getReadOnlyFieldSyntax());
+		return _Trans.update(lSQLObject1,lSQLObject2);
+	}
+	/**
+	 * 获取blob字段信息（创建于2002.07.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.22.
+	</pre>
+	</DL>
+* @param data 数据对象.
+* @param blobColName blob字段列名.
+* @return blob字节.
+* @exception NoSuchFieldException 关键字定义错误.
+* @exception SQLException 数据库错误.
+* @see #setBlob(DataObject,String,byte[])
+*/
+	
+	public byte[] getBlob(DataObject data,String blobColName)
+		throws NoSuchFieldException,SQLException
+	{	SQLObject lSQLObject = toPKSQLObject(data);
+		return _Trans.getBlob(lSQLObject,blobColName);
+	}
+	
+
+	/**
+	 * 设置blob字段信息（创建于2002.07.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.22.
+	</pre>
+	</DL>
+* @param data 数据对象.
+* @param blobColName blob字段列名.
+* @param blob blob字节.
+* @exception NoSuchFieldException 关键字定义错误.
+* @exception SQLException 数据库错误.
+* @see #getBlob(DataObject,String)
+*/
+	
+	public void setBlob(DataObject data,String blobColName,byte[] blob)
+		throws NoSuchFieldException,SQLException
+	{	SQLObject lSQLObject = toPKSQLObject(data);
+		_Trans.setBlob(lSQLObject,blobColName,blob);		
+	}
+
+	/**
+	 * 生成设定关键字为条件的SQLObject（创建于2002.07.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.22.
+	</pre>
+	</DL>
+* @param obj 数据对象.
+* @return 以关键字为条件的SQLObject.
+* @exception NoSuchFieldException 关键字定义错误.
+* @see #toDefaultSQLObject()
+*/
+	private SQLObject toPKSQLObject(DataObject data)
+		throws NoSuchFieldException
+	{	SQLObject lSQLObject = new SQLObject(data,data.getSQLRule());
+		lSQLObject.hideCndFields();
+		lSQLObject.showCndFields(data.getPKSyntax());
+		
+		return lSQLObject;
+	}
+	
+	/**
+	 * 生成默认条件的SQLObject（创建于2002.07.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	默认条件为属性值不为NULL，而且字符串类型不为"",属性之间为and关系。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.22.
+	</pre>
+	</DL>
+* @param data 数据对象.
+* @return	默认条件的SQLObject.
+* @exception NoSuchFieldException 关键字定义错误.
+* @see #toPKSQLObject()
+*/
+	private SQLObject toDefaultSQLObject(DataObject data)
+		throws NoSuchFieldException
+	{	SQLObject lSQLObject = new SQLObject(data,data.getSQLRule());
+	
+		lSQLObject.hideCndFields(SQLObject.VALUE_NOT_VALID);
+		
+		return lSQLObject;
+	}
+
+	/**
+	 * 生成指定条件的SQLObject（创建于2002.07.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	默认条件为属性值不为null，而且字符串类型不为"",属性之间为and关系。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.22.
+	</pre>
+	</DL>
+* @param data 数据对象.
+* @return	指定条件属性的SQLObject.
+* @exception NoSuchFieldException 关键字定义错误.
+* @see #toPKSQLObject()
+*/
+	private SQLObject toCndSQLObject(DataObject data)
+		throws NoSuchFieldException
+	{	String ls_cols = data.getCndFieldSyntax();
+		
+		if(ls_cols==null) return toDefaultSQLObject(data);
+				
+		SQLObject lSQLObject = new SQLObject(data,data.getSQLRule());
+	
+		lSQLObject.hideCndFields();
+		
+		lSQLObject.showCndFields(ls_cols);
+		
+		return lSQLObject;
+	}
+	
+	
+}
+

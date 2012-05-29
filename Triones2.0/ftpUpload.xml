@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="GB2312"?>
+<project name="ftpUpload" default="main" basedir=".">
+<description>FTP上传程序（作者：杨林奎、吴勇庆）</description>
+
+<!-- =========================参数定义========================= -->
+<!--
+<property name="PROJECT_NAME" value="WSTCC"/>
+<property name="FTP_SERVER" value="WSTCC"/>
+<property name="FTP_PORT" value="WSTCC"/>
+<property name="FTP_LOGIN" value="WSTCC"/>
+<property name="FTP_PWD" value="WSTCC"/>
+-->
+
+<!-- =========================默认设置========================= -->
+<tstamp>
+	<format property="date" pattern="yyyy-MM-dd"/>		
+	<format property="now" pattern="yyyy-MM-dd kk:mm:ss"/>
+</tstamp>
+<property name="PROJECT_FILE" value="..\${PROJECT_NAME}.war"/>
+
+<!-- =========================核心任务========================= -->
+<target name="main" description="Build the web application archive">
+
+<echo>01.执行FTP上传${now}==[${FTP_SERVER}]=====================</echo>
+<ftp action="put" server="${FTP_SERVER}" port="${FTP_PORT}" userid="${FTP_LOGIN}"  password="${FTP_PWD}">
+	<fileset file="${PROJECT_FILE}"/>
+</ftp>
+		
+<echo>99.完成所有动作${now}==========================</echo>
+		
+</target>
+
+<!-- =========================工程结尾========================= -->
+</project>
+

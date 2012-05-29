@@ -1,0 +1,461 @@
+package triones.sql;
+
+import java.util.*;
+/**<img src="new2.gif" width="35" height="15" border="0">数据视图对象（创建于 2002.09.10）.
+<DL>
+<DT><B>对象概述：</B><DD>
+<pre>
+&nbsp;&nbsp;&nbsp;&nbsp;SQLView主要用于定制SQL查询列。在SQLComment中由于数据类型本身的限制，并不适合
+进行统计和复杂查询。并且SQLComment本身设计的初衷也不是为统计模式提供帮助的。
+
+&nbsp;&nbsp;&nbsp;&nbsp;为了利用SQLComment生成查询条件的优势，并结合报表统计应用的需要形成了SQLView的
+设计目标。SQLView通过定义查询字段表达式来实现灵活的数据统计视图。
+</pre>
+<DT><B>使用说明：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>名词解释：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>注意事项：</B><DD>
+<pre>
+基于JDK1.3
+</pre>
+<DT><B>展望未来：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>联系方式：</B><DD>
+<pre>
+ email：wyq@triok.com 
+ 电  话:021-68672222-2013
+</pre>
+</DL>
+*@author	吴勇庆
+*@version 2002.09.10
+*/
+public class SQLView extends Hashtable
+{	
+
+
+	/**
+	 * 构造方法（创建于 2002.09.10）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.09.10.
+	</pre>
+	</DL>
+* @see #SQLView(String[])
+*/
+	public SQLView()
+	{
+	}
+	
+
+	/**
+	 * 构造方法（创建于 2002.09.10）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.09.10.
+	</pre>
+	</DL>
+* @param fields 查询表达式.
+* @see #SQLView()
+*/
+	public SQLView(String[] fields)
+	{ declareFields(fields);			
+	}
+	
+
+	/**
+	 * 声明多个查询表达式（创建于 2002.09.10）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.09.10.
+	</pre>
+	</DL>
+* @param fields 查询表达式.
+* @return 声明成功的表达式个数.
+*/
+	public int declareFields(String[] fields)
+	{	int j=0;
+		for(int i=0;i<fields.length;i++)
+			if(declareField(fields[i]))
+				j++;
+		
+		return j;
+	}
+	
+	/**
+	 * 声明一个查询字段表达式（创建于 2002.09.10）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	查询字段表达式为实际的数据库字段表达式，与SQLComment中的filed无关。
+	如果两个查询表达式相同，则被忽略，同时返回false
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.09.10.
+	</pre>
+	</DL>
+* @param field 查询字段表达式.
+	@return true代表声明成功；false代表查询表达式已存在，声明失败.
+*/
+	public boolean declareField(String field)
+	{	return declareField(field,"WYQ" + size());	
+	}
+	
+
+	/**
+	 * 声明一个查询字段表达式（创建于 2002.09.10）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	查询字段表达式为实际的数据库字段表达式，与SQLComment中的filed无关。
+	如果两个查询表达式相同，则被忽略，同时返回false
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.09.10.
+	</pre>
+	</DL>
+* @param field 查询字段表达式.
+* @param alias 查询字段的别名.
+	@return true代表声明成功；false代表查询表达式已存在，声明失败.
+* @see #declaredField(String)
+*/
+	boolean declareField(String field,String alias)
+	{	if(containsKey(field))
+			return false;
+			
+		put(field,alias);
+		
+		return true;		
+	}
+
+	/**
+	 * 设置查询表达式的值（创建于 2002.09.10）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	如果值为null，则将该查询表达式清除。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.09.10.
+	</pre>
+	</DL>
+* @param field 查询表达式.
+* @param val 值.
+*/
+	public void setFieldObject(String field,Object val)
+	{	if(val==null)
+			remove(field);
+		else
+			put(field,val);
+		
+	}
+	
+
+	/**
+	 * 取查询表达式当前的值（创建于 2002.09.10）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	在执行查询前的默认值为别名，查询成功后为实际的结果值。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.09.10.
+	</pre>
+	</DL>
+* @param field 查询表达式.
+* @return 查询结果.
+* @see #getFieldLong(String)
+	@see #getFieldDouble(String)
+	@see #getFieldString(String)
+*/
+	public Object getFieldObject(String field)
+	{	return get(field);
+	}
+	/**
+	 * 取查询表达式当前的值（创建于 2002.09.10）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	在执行查询前的默认值为"COL#",#代表查询表达式的序号。
+	查询成功后为实际的结果值。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.09.10.
+	</pre>
+	</DL>
+* @param field 查询表达式.
+* @return 查询结果.
+	@exception NumberFormatException 当前值为null或者类型不匹配
+* @see #getFieldObject(String)
+*/
+	public long getFieldLong(String field)
+	{	return (new Long(get(field) + "")).longValue();
+	}
+	/**
+	 * 取查询表达式当前的值（创建于 2002.09.10）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	在执行查询前的默认值为"COL#",#代表查询表达式的序号。
+	查询成功后为实际的结果值。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.09.10.
+	</pre>
+	</DL>
+* @param field 查询表达式.
+* @return 查询结果.
+	@exception NumberFormatException 当前值为null或者类型不匹配
+* @see #getFieldObject(String)
+*/
+	public double getFieldDouble(String field)
+	{ return (new Double(get(field) + "")).doubleValue();
+	}
+	
+	/**
+	 * 取查询表达式当前的值（创建于 2002.09.10）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	在执行查询前的默认值为"COL#",#代表查询表达式的序号。
+	查询成功后为实际的结果值。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.09.10.
+	</pre>
+	</DL>
+* @param field 查询表达式.
+* @return 查询结果.
+* @see #getFieldObject(String)
+*/
+	public String getFieldString(String field)
+	{ Object lo_val = get(field);
+		return (lo_val==null? null : lo_val + "");
+	}
+	
+
+	/**
+	 * 字符串形式（创建于 2002.09.10）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	以查询SQL中表达式形式出现。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.09.10.
+	</pre>
+	</DL>
+* @return 字符串形式.
+  @exception ProviderException 在SQLView中找不到查询表达式.
+*/
+	public String toString()
+	{	String ls_text = "";
+		
+		if(size()<=0) throw new java.security.ProviderException("No fields in SQLView Instance!（在SQLView中找不到查询表达式）");
+		
+		Object[] lo_fields = keySet().toArray();
+		
+		for(int i=0;i<lo_fields.length;i++)
+		{	if(i>0) ls_text += ",";
+			ls_text += (lo_fields[i] + " AS " + get(lo_fields[i]));
+		}
+		
+		return ls_text;			
+	}
+	
+	/**
+	 * 取当前声明的查询表达式列表（创建于 2002.09.10）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.09.10.
+	注销于 2003.01.24 - 为了与Class.getFields()的含义及名称保持一致.
+	</pre>
+	</DL>
+* @return 当前声明的查询表达式列表.
+	@see #getDeclaredFieldsAlias()
+	@deprecated 由getFields()代替.
+*/
+	public String[] getDeclaredFields()
+	{ Enumeration lEnum = keys();
+		String[] ls_fields = new String[size()];
+		int i = 0;
+		
+		while(lEnum.hasMoreElements())
+			ls_fields[i++] = (String)lEnum.nextElement();
+		
+		return ls_fields;
+	}
+	/**
+	 * 取当前声明的查询表达式列表（创建于 2002.09.10）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.09.10.
+	</pre>
+	</DL>
+* @return 当前声明的查询表达式列表.
+	@see #getFieldsAlias()
+*/
+	public String[] getFields()
+	{ Enumeration lEnum = keys();
+		String[] ls_fields = new String[size()];
+		int i = 0;
+		
+		while(lEnum.hasMoreElements())
+			ls_fields[i++] = (String)lEnum.nextElement();
+		
+		return ls_fields;
+	}
+
+	/**
+	 * 取当前声明的查询表达式别名列表（创建于 2002.09.10）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.09.10.
+	注销于 2003.01.24 - 为了与Class.getFields()对应.
+	</pre>
+	</DL>
+* @return 当前声明的查询表达式别名列表.
+	@see #getDeclaredFields()
+	@deprecated 由getFieldsAlias()代替.
+*/
+	public String[] getDeclaredFieldsAlias()
+	{ Enumeration lEnum = keys();
+		String[] ls_fields = new String[size()];
+		int i = 0;
+		
+		while(lEnum.hasMoreElements())
+			ls_fields[i++] = (String)get(lEnum.nextElement());
+		
+		return ls_fields;
+	}
+	/**
+	 * 取当前声明的查询表达式别名列表（创建于 2003.01.24）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2003.01.24.
+	</pre>
+	</DL>
+* @return 当前声明的查询表达式别名列表.
+	@see #getFields()
+*/
+	public String[] getFieldsAlias()
+	{ Enumeration lEnum = keys();
+		String[] ls_fields = new String[size()];
+		int i = 0;
+		
+		while(lEnum.hasMoreElements())
+			ls_fields[i++] = (String)get(lEnum.nextElement());
+		
+		return ls_fields;
+	}
+}
+

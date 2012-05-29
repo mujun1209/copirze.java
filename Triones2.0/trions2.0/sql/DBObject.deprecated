@@ -1,0 +1,797 @@
+package triones.sql;
+
+import triones.util.*;
+
+import java.sql.*;
+import java.util.ArrayList;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+
+/**<img src="..\alert.gif" width="16" height="16" border="0">数据库存储类（创建于2002.07.22）.
+<DL>
+<DT><B>对象概述：</B><DD>
+<pre>
+    帮助开发人员简化数据库存取,代替SQLObject接口.
+
+    长久以来,SQLObject虽然提出了从数据库角度存取记录的设计模式,但由于缺乏应用实例,
+因此没有得到大多数开发人员的认可.
+
+    DBObject实际上是从另一个角度来制订存取记录的设计模式,它站在应用角度,并与DBTrans
+相结合,带来了全新的数据库存取观念.
+</pre>
+<DT><B>使用说明：</B><DD>
+<pre>
+以下代码用于实现一个能对数据库表OSIE_METHOD进行各项操作的类。
+该类中各公共变量名与表的字段名（忽略大小写）对应。
+
+public class OSIE_METHOD extends DBObject
+{	//自增变量
+	public long ID;
+	//服务名称
+	public String svrName;
+	//方法名称
+	public String methodName;
+	//注释
+	public String rem;
+	//请求格式
+	public String reqXSD;
+	//结果格式
+	public String respXSD;
+	
+
+	//构造方法
+	public OSIE_METHOD()
+	{ //以"svrName,methodName"为关键字
+		setPrimaryKey("svrName,methodName");
+		//ID为自增变量，因此在增改时不影响该属性的值
+		setReadOnlyFields("ID");
+		//可以通过setSQLRule(SQLRule)设置类、字段与库表、字段间的映射关系
+	}
+}
+
+</pre>
+<DT><B>注意事项：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>展望未来：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>联系方式：</B><DD>
+<pre>
+ email：wyq@triok.com 
+ 电  话:021-68672222-2013
+</pre>
+</DL>
+*@author	吴勇庆
+*@version 2002.07.03
+*/
+public abstract class DBObject
+{
+/**关键字（创建于2002.07.22）.
+<DL>
+<DT><B>说明：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>示例：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>日志：</B><DD>
+<pre>
+创建于 2002.09.09.
+</pre>
+</DL>
+* @see #setPrimaryKey(String)
+	@see #getPrimaryKey()
+*/
+	private String _PrimaryKey;
+/**命名规则（创建于2002.08.15）.
+<DL>
+<DT><B>说明：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>示例：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>日志：</B><DD>
+<pre>
+创建于 2002.08.15.
+</pre>
+</DL>
+* @see #setSQLRule(SQLRule)
+*/
+	private SQLRule _Rule = null;
+/**设置只读的属性名（创建于 2002.09.09）.
+<DL>
+<DT><B>说明：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>示例：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>日志：</B><DD>
+<pre>
+创建于 2002.09.09.
+</pre>
+</DL>
+* @see #setReadOnlyFields(String)
+	@see #getReadOnlyFields()
+*/
+	private String _ReadOnlyFields = null;
+	
+/**条件属性（创建于 2002.09.11）.
+<DL>
+<DT><B>说明：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>示例：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>日志：</B><DD>
+<pre>
+创建于 2002.09.11.
+</pre>
+</DL>
+* @see #setCndFields(String)
+*/private String _CndFields = null;
+	
+
+	/**
+	 * 设定条件的属性（创建于 2002.09.11）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	如果有多个条件属性，用","分隔。
+	默认的条件属性为非NULL且非空字符串的公共属性。
+	条件属性之间为AND模式
+	keys为null，代表采用默认属性
+			为""，代表所有属性都不作为条件属性
+			为"*"，代表所有属性都作为条件属性
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.09.11.
+	</pre>
+	</DL>
+* @param keys 条件属性.
+* @see #getCndFields()
+*/
+	public void setCndFields(String keys)
+	{ _CndFields = keys;
+	}
+
+/**
+ * 返回当前设置的条件属性（创建于 2002.09.11）.
+<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.09.11.
+	</pre>
+	</DL>
+* @return 条件属性清单.
+* @see #setCndFields(String)
+*/
+
+	public String getCndFields()
+	{	return _CndFields;
+	}
+	/**
+	 * <img src="new.gif" width="28" height="11" border="0">设置只读属性清单（创建于 2002.09.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	只读属性在进行增、改操作时不受影响。
+	如果有多个只读属性，用","分隔。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.09.09.
+	</pre>
+	</DL>
+* @param keys 只读属性清单，多个之间用","分隔.
+* @see #getReadOnlyFields()
+*/
+	public void setReadOnlyFields(String keys)
+	{	_ReadOnlyFields = keys;
+	}
+	
+
+	/**
+	 * <img src="new.gif" width="28" height="11" border="0">获取当前设定的只读属性清单（创建于 2002.09.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.09.09.
+	</pre>
+	</DL>
+* @return 只读属性清单.
+* @see #setReadOnlyFields(String)
+*/
+	public String getReadOnlyFields()
+	{	return _ReadOnlyFields;
+	}
+	
+	
+	/**
+	 * 隐藏只读属性（创建于 2002.09.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.09.09.
+	</pre>
+	</DL>
+* @param com SQL语义对象.
+* @exception NoSuchFieldException 隐藏属性不存在.
+* @see #_ReadOnlyFields
+*/
+	void hideReadOnlyFields(SQLComment com)
+		throws NoSuchFieldException
+	{	if(StringMethod.isValid(_ReadOnlyFields))
+			com.hideFields(_ReadOnlyFields);
+	}
+	/**
+	 * 设置数据对象的关键字属性（创建于2002.07.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	如果有多个属性，则属性之间采用SQLComment.FIELDNAME_APART分隔。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.22.
+	</pre>
+	</DL>
+* @param key 关键字属性.
+* @see #getPrimaryKey()
+*/
+	public void setPrimaryKey(String key)
+	{	_PrimaryKey = key;
+	}
+	
+
+	/**
+	 * 设置命名规则（创建于 2002.08.15）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	命名规则用于映射类与库表，PUBLIC属性与库表字段之间的对应关系。
+	默认方式参见SQLComment.initSQLRule(SQLRule)中的相关描述.
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.15.
+	</pre>
+	</DL>
+* @param rule 命名规则.
+	@deprecated 容易引起理解上的歧义，由setSQLRule(rule)取代
+*/
+	public void initSQLRule(SQLRule rule)
+	{ _Rule = rule;
+	}
+	/**
+	 * <img src="new.gif" width="28" height="11" border="0">设置命名规则（创建于 2002.08.15）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	命名规则用于映射类与库表，PUBLIC属性与库表字段之间的对应关系。
+	默认方式参见SQLComment.initSQLRule(SQLRule)中的相关描述.
+	采用本方法，不会影响SQLComment的默认命名规则。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.15.
+	</pre>
+	</DL>
+* @param rule 命名规则.
+*/	
+	public void setSQLRule(SQLRule rule)
+	{ _Rule = rule;
+	}
+	/**
+ 	* 获取数据对象的关键字属性（创建于2002.07.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	如果有多个属性，则属性之间采用SQLComment.FIELDNAME_APART分隔。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.22.
+	</pre>
+	</DL>
+* @return 关键字属性.
+* @see #setPrimaryKey(String)
+*/
+	public String getPrimaryKey()
+	{	return _PrimaryKey;
+	}
+
+	/**
+	 * 保存当前对象的信息（创建于2002.07.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	如果该对象关键字信息已存在,则覆盖；
+	如果不存在，则新增。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.22.
+	</pre>
+	</DL>
+* @param sqlca 数据库传输对象实例.
+* @exception SQLException 数据库错误.
+* @exception NoSuchFieldException 关键字定义错误.
+*/
+	public void save(DBTrans sqlca)
+		throws SQLException,NoSuchFieldException
+	{	SQLComment lSQLComment = toPKSQLComment();
+		
+		hideReadOnlyFields(lSQLComment);
+		
+		if(exists(sqlca))
+			sqlca.update(lSQLComment);			
+		else
+			sqlca.insert(lSQLComment);
+	}
+	
+
+	/**
+	 * 根据关键字获取对象信息（创建于2002.07.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.22.
+	</pre>
+	</DL>
+* @param sqlca 数据库传输对象.
+  @return true代表成功，false代表没找到该记录.
+* @exception SQLException 数据库错误.
+* @exception NoSuchFieldException 关键字定义错误.
+* @exception IllegalAccessException 不是公共属性.
+* @exception InstantiationException description.
+*/
+	public boolean get(DBTrans sqlca)
+		throws SQLException,NoSuchFieldException,IllegalAccessException,InstantiationException
+	{	SQLComment lSQLComment = toPKSQLComment();
+		
+		boolean lb_notFound = (ResultSetMethod.copyFirst(sqlca.query(lSQLComment),this)<0);
+		
+		sqlca.closeStatement();
+		
+		return !lb_notFound;
+	}
+	
+	
+
+	/**
+	 * 判断该关键字的记录是否已存在（创建于2002.07.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.22.
+	</pre>
+	</DL>
+* @param sqlca 数据库传输对象.
+* @return true代表存在，false代表不存在.
+* @exception SQLException 数据库错误.
+* @exception NoSuchFieldException 关键字定义错误.
+*/
+	public boolean exists(DBTrans sqlca)
+		throws SQLException,NoSuchFieldException
+	{	SQLComment lSQLComment = toPKSQLComment();
+		return sqlca.getRowCount(lSQLComment) > 0;
+	}
+	/**
+	 * 根据关键字修改对象信息（创建于2002.07.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.22.
+	</pre>
+	</DL>
+* @param sqlca 数据库传输对象.
+* @exception SQLException 数据库错误.
+* @exception NoSuchFieldException 关键字定义错误.
+*/
+	public void set(DBTrans sqlca)
+		throws SQLException,NoSuchFieldException
+	{	SQLComment lSQLComment = toPKSQLComment();
+		hideReadOnlyFields(lSQLComment);
+		sqlca.update(lSQLComment);			
+	}
+	
+	/**
+	 * 根据关键字删除对象（创建于2002.07.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.22.
+	</pre>
+	</DL>
+* @param sqlca 数据库传输对象.
+* @exception SQLException 数据库错误.
+* @exception NoSuchFieldException 关键字定义错误.
+*/
+	
+	public void del(DBTrans sqlca)
+		throws SQLException,NoSuchFieldException
+	{	SQLComment lSQLComment = toPKSQLComment();
+		sqlca.delete(lSQLComment);	
+	}
+	 
+
+	/**
+	 * 将对象新增到数据库中（创建于2002.07.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.22.
+	</pre>
+	</DL>
+* @param sqlca 数据库传输对象.
+* @exception SQLException 数据库错误.
+*/
+	public void add(DBTrans sqlca)
+		throws SQLException,NoSuchFieldException
+	{	SQLComment lSQLComment = new SQLComment(this);			
+		hideReadOnlyFields(lSQLComment);			
+		sqlca.insert(lSQLComment);
+	}
+	
+	/**
+	 * 根据对象条件属性查询（创建于2002.07.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	条件属性之间采用"AND"关系。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.22.
+	</pre>
+	</DL>
+* @param sqlca 数据库传输对象.
+* @return 符合条件属性的对象集.
+* @exception SQLException 数据库错误.
+  @exception NoSuchFieldException 属性不存在.
+* @throws IllegalAccessException 对应类的属性值必须初始化。
+* @throws InstantiationException 对应类不存在，或者是一个抽象类，或者构造函数全都有参数。
+*/
+	public ArrayList list(DBTrans sqlca)
+		throws SQLException,NoSuchFieldException,IllegalAccessException,InstantiationException
+	{ SQLComment lSQLComment = null;
+	
+		if(_CndFields==null)
+			lSQLComment = toDefaultSQLComment();
+		else
+		{	lSQLComment = new SQLComment(this,_Rule);
+			lSQLComment.hideCndFields();
+			lSQLComment.showCndFields(_CndFields);
+		}
+			
+		
+		return sqlca.select(lSQLComment);
+	}
+
+		/**
+	 * 根据对象条件属性查询（创建于2002.08.16）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+		条件属性之间采用"AND"关系。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.16.
+	</pre>
+	</DL>
+* @param sqlca 数据库传输对象.
+* @param beginIndex 从第几个记录开始，范围为1..记录总数.
+* @param rows >0 向后取几条记录，<0 向前取几条记录.
+* @return 符合条件属性的对象集.
+* @exception SQLException 数据库错误.
+  @exception NoSuchFieldException 属性不存在.
+* @throws IllegalAccessException 对应类的属性值必须初始化。
+* @throws InstantiationException 对应类不存在，或者是一个抽象类，或者构造函数全都有参数。
+*/
+	public ArrayList list(DBTrans sqlca,int beginIndex,int rows)
+		throws SQLException,NoSuchFieldException,IllegalAccessException,InstantiationException
+	{ SQLComment lSQLComment = toDefaultSQLComment();
+		
+		return sqlca.select(lSQLComment,beginIndex,rows);
+	}
+
+	/**
+	 * 删除符合条件属性的记录（创建于2002.07.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	条件属性之间采用"AND"关系。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.22.
+	</pre>
+	</DL>
+* @param sqlca 数据库传输对象.
+* @return 删除记录的个数.
+* @exception SQLException 数据库错误.
+* @exception NoSuchFieldException description.
+*/
+	public int remove(DBTrans sqlca)
+		throws SQLException,NoSuchFieldException
+	{	SQLComment lSQLComment = toDefaultSQLComment();
+		
+		return sqlca.delete(lSQLComment);
+	}
+	
+
+	/**
+	 *  将符合条件属性的记录修改，使其符合新的条件属性（创建于2002.07.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	条件属性之间采用"AND"关系。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.22.
+	</pre>
+	</DL>
+* @param sqlca 数据传输对象.
+* @param obj 包含新条件属性的数据对象.
+* @return 受影响的记录个数.
+* @exception SQLException 数据库错误.
+	@exception NoSuchFieldException description.
+*/
+	public int replace(DBTrans sqlca,DBObject obj)
+		throws SQLException,NoSuchFieldException
+	{	SQLComment lSQLComment1 = toDefaultSQLComment();
+		SQLComment lSQLComment2 = new SQLComment(obj);
+		String ls_cols = lSQLComment2.getFieldNames(SQLComment.VALUE_NOT_VALID);		
+		lSQLComment2.hideFields(ls_cols);
+		hideReadOnlyFields(lSQLComment2);
+		return sqlca.update(lSQLComment1,lSQLComment2);
+	}
+	/**
+	 * 获取blob字段信息（创建于2002.07.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.22.
+	</pre>
+	</DL>
+* @param sqlca 数据传输对象.
+* @param blobColName blob字段列名.
+* @return blob字节.
+* @exception NoSuchFieldException 关键字定义错误.
+* @exception SQLException 数据库错误.
+* @see #setBlob(DBTrans,String,byte[])
+*/
+	
+	public byte[] getBlob(DBTrans sqlca,String blobColName)
+		throws NoSuchFieldException,SQLException
+	{	SQLComment lSQLComment = toPKSQLComment();
+		return sqlca.getBlob(lSQLComment,blobColName);
+	}
+	
+
+	/**
+	 * 设置blob字段信息（创建于2002.07.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.22.
+	</pre>
+	</DL>
+* @param sqlca 数据传输对象.
+* @param blobColName blob字段列名.
+* @param blob blob字节.
+* @exception NoSuchFieldException 关键字定义错误.
+* @exception SQLException 数据库错误.
+* @see #getBlob(DBTrans,String)
+*/
+	
+	public void setBlob(DBTrans sqlca,String blobColName,byte[] blob)
+		throws NoSuchFieldException,SQLException
+	{	SQLComment lSQLComment = toPKSQLComment();
+		sqlca.setBlob(lSQLComment,blobColName,blob);		
+	}
+
+	/**
+	 * 生成设定关键字为条件的SQLComment（创建于2002.07.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.22.
+	</pre>
+	</DL>
+* @param obj 数据对象.
+* @return 以关键字为条件的SQLComment.
+* @exception NoSuchFieldException 关键字定义错误.
+* @see #toDefaultSQLComment()
+*/
+	private SQLComment toPKSQLComment()
+		throws NoSuchFieldException
+	{	SQLComment lSQLComment = new SQLComment(this,_Rule);
+		lSQLComment.hideCndFields();
+		lSQLComment.showCndFields(_PrimaryKey);
+		
+		return lSQLComment;
+	}
+	
+	/**
+	 * 生成默认条件的SQLComment（创建于2002.07.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	默认条件为属性值不为NULL，而且字符串类型不为"",属性之间为and关系。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.22.
+	</pre>
+	</DL>
+* @param obj 数据对象.
+* @return	默认条件的SQLComment.
+* @exception NoSuchFieldException 关键字定义错误.
+* @see #toPKSQLComment()
+*/
+	private SQLComment toDefaultSQLComment()
+		throws NoSuchFieldException
+	{	SQLComment lSQLComment = new SQLComment(this,_Rule);
+	
+		lSQLComment.hideCndFields(SQLComment.VALUE_NOT_VALID);
+		
+		return lSQLComment;
+	}
+
+
+}
+

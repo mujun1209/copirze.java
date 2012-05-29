@@ -1,0 +1,72 @@
+package triones.util;
+
+/**不存在的值异常.
+<DL>
+<DT><B>对象概述：</B><DD>
+<pre>
+如果某个值不属于规定的常量，则采用本异常。
+</pre>
+<DT><B>使用说明：</B><DD>
+<pre>
+无
+</pre>
+<DT><B>名词解释：</B><DD>
+<pre>
+无
+</pre>
+<DT><B>注意事项：</B><DD>
+<pre>
+无
+</pre>
+<DT><B>展望未来：</B><DD>
+<pre>
+无
+</pre>
+<DT><B>联系方式：</B><DD>
+<pre>
+ email：wyq@wondersgroup.com 
+ 电  话:021-64950118-2346
+</pre>
+</DL>
+*@author	吴勇庆
+*@version 2002.01.29
+ @deprecated 为了方便开发人员减少对异常的捕获工作，采用动态异常IllegalArgumentException代替。
+*/
+public class UnsupportedValueException extends triones.app.MyException
+{	
+/**
+* 构造方法.
+<P><DL>
+<DT><B>说明：</B><DD>
+<pre>
+无
+</pre>
+<DT><B>示例：</B><DD>
+<pre>
+无
+</pre>
+</DL>
+*/
+	public UnsupportedValueException()
+	{	super();
+	}
+/**
+* 构造方法.
+<P><DL>
+<DT><B>说明：</B><DD>
+<pre>
+设定字符串格式的提示信息。
+</pre>
+<DT><B>示例：</B><DD>
+<pre>
+无
+</pre>
+</DL>
+* @param text 提示信息.
+*/
+  public UnsupportedValueException(String s)
+  { super(s);
+  }
+
+}
+

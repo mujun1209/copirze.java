@@ -1,0 +1,3880 @@
+package triones.sql;
+
+import java.lang.Class;
+import java.lang.reflect.*;
+import java.util.*;
+
+import triones.Debug;
+import triones.util.*;
+import triones.frame.Factory;
+/**SQL存储语义对象（创建于 2002.01.29）.
+<DL>
+<DT><B>对象概述：</B><DD>
+<pre>
+&nbsp;&nbsp;&nbsp;&nbsp;SQLComment的设计目的在于提供逻辑层到存储层的统一接口标准。在大多数应用开发中，
+业务逻辑的设计基本采用面向对象的设计方法，但到了数据存储层，往往需将业务逻辑的数据输
+出转换为SQL语句。如果缺乏好的开发控制，很容易导致以下问题的发生：
+
+1.编写与数据库交换数据的工作量很大，而且不容易调试。
+2.表单结构发生变化后，与该表单相关的程序几乎全部重新调试和开发，并且很难保证所有相关
+  代码都能被找到。
+3.由于在将数据从数据库中提取出来的过程比较繁琐，因此以往的开发中，经常会直接将数据从
+  存储层转到界面层，忽略了逻辑层，从而失去了三层结构为软件设计带来的灵活性、高适应性
+	的优点。
+4.一旦数据库系统需要移植到另一种数据库系统中，则很有可能产生SQL语句的不兼容性。
+	
+&nbsp;&nbsp;&nbsp;&nbsp;采用SQLComment可以在以上三个方面带来很大的改善。首先，它规范了逻辑层与存储层进
+行数据交换的过程，并且可以保证60％以上的数据库操作过程是完全一致的，因此可以在此基础
+上开发代码自动生成工具，从而提高数据交换方面的工作效率。其次，由于SQLComment完成数据
+库操作的语句是动态生成的，因此当库表结构发生变化时，只需修改字段的映射机制，95％以上
+的程序代码不需要修改。再次，采用SQLComment方式可以很好地保证在软件设计中略需为了方便
+实现而放弃结构的灵活性和高适用性。最后，SQLComment与DBTrans、Connector很好地组成了
+一整套与数据库系统具体类型略关的数据交换机制，可以方便地实现跨数据库平台的程序开发。
+
+&nbsp;&nbsp;&nbsp;&nbsp;目前SQLComment除了能提供对单个库表的数据操作外，还提供了多表查询机制。此外，
+triones还计划在未来提供更灵活更强大的条件组合方式、排序、分组等方面的功能。
+</pre>
+<DT><B>使用说明：</B><DD>
+<pre>
+
+假设数据库中创建表streamexample：
+
+CREATE TABLE "STREAMEXAMPLE"
+       ("NAME" VARCHAR2(256),
+       "REG_DT" DATE,
+       "GIFDATA" BLOB,
+       "MONEY" NUMBER(5,2)) ;
+				
+为了存取其中的数据，设计MyExample类：
+
+//列名的默认规则是与属性名一致
+public class MyExample
+	{	public String name;
+		public TimeStamp reg_dt;
+	}
+
+&nbsp;&nbsp;&nbsp;&nbsp;在使用时先将用于存取数据的对象转换成SQLComment语义，然后调用DBTrans的insert、
+update、delete、select等方法实现对数据库的存取操作。为了演示如何使用，我们设计一个
+Test类：
+
+class Test
+{
+
+public static void main(String args[]) 
+{	Debug.IFDebug = true;
+	try
+	{ //连接数据库
+		DBTrans SQLCA = new DBTrans(DBMS.ORACLE,"thin:@172.16.1.108:1521:ebdemo","");
+		MyExample example = new MyExample();
+		
+		//设置插入到数据库的记录
+		example.name = "wyq1";		
+		example.reg_dt = new Timestamp(1975,11,5,10,10,10,10);
+		
+		//转换成SQLComment,指定与MyExample对应的数据库表StreamExample
+		//实际开发中，建议将存储类的名字与数据库表名以某种规则进行对应，以方便实现。
+		SQLComment com = new SQLComment(example,"StreamExample");
+		
+		//查询时reg_dt不作为条件表达式出现
+		com.hideCndField("reg_dt");
+		
+		//以下语句相当于执行INSERT INTO StreamExample
+		//(name,reg_dt) VALUES(?,?)
+		SQLCA.insert(com);
+		
+		//以下语句相当于执行
+		//SELECT name,reg_dt FROM StreamExample WHERE name = ?
+		//查询结果集是以ArrayList的方式返回，其中的元素为MyExample类
+		MyExample result = (MyExample)(SQLCA.select(com).toArray())[0];
+		
+		//打印结果
+		System.out.println(result.name + "," + result.reg_dt);
+											
+		SQLCA.close();//断开数据库
+	}
+	catch(Exception e)
+	{	System.out.println(e);
+	}
+	
+执行Test类，结果如下：
+
+wyq1,3875-12-05 10:10:10.0
+
+</pre>
+<DT><B>注意事项：</B><DD>
+<pre>
+    &nbsp;&nbsp;&nbsp;&nbsp;值得注意的是，由于采用JDBC默认的数据转换模式，因此数据对象中的变量类型建议
+		按以下要求设计：
+	<TABLE BORDER=2>
+		<TR><TH>数据库类型</TH><TH>JAVA类型</TH>
+		<TR><TD>VARCHAR</TD><TD>java.lang.String</TD>
+		<TR><TD>LONGVARCHAR</TD><TD>java.lang.String</TD>
+		<TR><TD>BIT</TD><TD>boolean/java.lang.Boolean</TD>
+		<TR><TD>TINYINT</TD><TD>byte/java.lang.Byte</TD>
+		<TR><TD>VARBINARY</TD><TD>byte[]</TD>
+		<TR><TD>SMALLINT</TD><TD>short/java.lang.Short</TD>
+		<TR><TD>INTEGER</TD><TD>int/java.lang.Integer</TD>
+		<TR><TD>BIGINT</TD><TD>long/java.lang.Long</TD>
+		<TR><TD>REAL</TD><TD>float/java.lang.Float</TD>
+		<TR><TD>DOUBLE</TD><TD>double/java.lang.Double</TD>
+		<TR><TD>NUMERIC(n,m)</TD><TD>java.math.BigDecimal/double/java.lang.Double/float/java.lang.Float</TD>
+		<TR><TD>NUMERIC(n,0)</TD><TD>short/java.lang.Short/int/java.lang.Integer/long/java.lang.Long</TD>
+		<TR><TD>DATE</TD><TD>java.sql.Date/java.util.Date</TD>
+		<TR><TD>TIME</TD><TD>java.sql.Time</TD>
+		<TR><TD>TIMESTAMP</TD><TD>java.sql.Timestamp</TD>
+		</TABLE>
+</pre>
+<DT><B>展望未来：</B><DD>
+<pre>
+1.增加排序的强化版	
+2.增加对group的强化版
+3.增加对条件关系的强化版
+4.增加对XML的支持
+</pre>
+<DT><B>联系方式：</B><DD>
+<pre>
+email：wyq@triok.com
+电  话:021-68672222-2013
+</pre>
+</DL>
+*@author	吴勇庆
+*@version 2002.12.18
+*@see DBTrans
+*/
+public class SQLComment implements Cloneable
+{	
+/**版本号（创建于 2002.01.29）.
+<DL>
+<DT><B>说明：</B><DD>
+<pre>
+VERSION = "2002.12.18"
+</pre>
+<DT><B>示例：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>日志：</B><DD>
+<pre>
+创建于 2002.01.29.
+</pre>
+</DL>
+*/
+	public static final String VERSION = "2002.12.18";	
+	/**生成数据库insert子句（创建于 2002.01.29）.*/
+	static final int SQL_INSERT = 0;
+	/**生成数据库update子句（创建于 2002.01.29）.*/
+	static final int SQL_UPDATE = 1;
+	/**生成数据库delete子句（创建于 2002.01.29）.*/
+	static final int SQL_DELETE = 2;
+	/**生成数据库insert子句（创建于 2002.01.29）.*/
+	static final int SQL_SELECT = 3;
+	/**生成数据库条件子句（创建于 2002.01.29）.*/
+	static final int SQL_CONDITION = 4;
+	/**生成排序子句（创建于 2002.01.29）.*/
+	static final int SQL_SORT = 5;
+	/**生成分组子句（创建于 2002.01.29）.*/
+	static final int SQL_GROUP = 6;
+	/**子句种类的个数,默认初始化操作（创建于 2002.01.29）.*/
+	static final int SQL_DEFAULT = 7;
+	/**对象属性名分隔符（创建于 2002.01.29）.*/
+	public final static char FIELDNAME_APART = ',';
+
+	/**导入对象的类型*/
+	private Class _ClassType;
+	/**用于预编译的SQL语句*/
+	private String[] _PreparedSQL;
+	/**SQL语句*/
+	private String[] _SQL;
+	/**附加条件选项，默认用And方式关联*/
+	String _AppendCondition = "";
+	/**附加条件关联类型*/
+	private int _AppendConditionRelation = CNDRELATION_AND;
+	/**是否为复合类型*/
+	private boolean _IsMultiple = false;
+	/**组成复合类型的各个ClassType，只在_IsMultiple=true时使用*/
+	private ArrayList _MultiClassType;
+	
+	/**与SQLComment相关的数据库对象名。
+	在SQLComment中每次操作都相关到一个数据库表（或视图），一般情况下_DBName等于不包含路径的类名。
+	如果不想以默认方式，则可以显示定义数据库对象名。
+	*/
+	private String _DBName;
+	/**原始对象名*/
+	private String _Name;
+	/**域数组*/
+	private FieldTag[] _Fields;
+	/**操作命令*/
+	private int _OP;
+	
+	/**初始化时的对象与数据库对象之间的命名规则.*/
+	static SQLRule DEFAULT_SQLRULE = new DefaultSQLRule();
+
+	
+	/**
+	 * <img src="important.gif" width="20" height="20" border="0">设置初始化的对象与数据库对象之间的命名规则（创建于 2002.03.08）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	目前的规则指命名规则.一般情况下采用默认的命名规则，即：
+	
+	1.忽略路径的对象名对应于数据库对象（表、视图等）名；
+	2.对象的属性名对应于数据库对象的对象属性名。
+	3.以上均忽略大小写。	
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.03.08.
+	</pre>
+	</DL>
+* @param rule 规则集.
+*/
+	public static void initSQLRule(SQLRule rule)
+	{	DEFAULT_SQLRULE = rule;
+	}
+
+
+	/**
+	 * 构造方法（创建于 2002.01.29）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+		提供方法和数据结构的调用，可用于ArrayList转换到数组时作为默认的存储实例。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	SQLComment[] com;
+	ArrayList coms = new ArrayList();
+	
+	//...	对coms添加SQLComment对象
+	com = (SQLComment []) coms.toArray({new SQLComment()});
+
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.01.29.
+	修改于 2002.08.07 - 增加初始化的私有属性的功能.
+	</pre>
+	</DL>
+*/
+	public SQLComment()
+	{	_SQL = new String[SQL_DEFAULT];
+		_PreparedSQL = new String[SQL_DEFAULT];
+		_OP = SQL_DEFAULT;	
+	}
+	
+	/**<img src="important.gif" width="20" height="20" border="0">构造方法（创建于 2002.01.29）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	以当前默认的命名规则创建实例。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	//FBI_USER对应于数据库表"FBI_USER"
+	com.wondersgroup.fbi.FBI_USER user = new FBI_USER();
+	
+	//U_ID、U_NAME分别对应于库表字段"FBI_USER"."U_ID"、"FBI_USER"."U_NAME"
+	user.U_ID = "tiger";
+	user.U_NAME = "虎子";
+	
+	//以默认方式创建实例。
+	SQLComment mycomment = new SQLComment(user);
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.01.29.
+	</pre>
+	</DL>
+	@param obj 需要生成SQLComment的对象.
+	@see #initSQLRule(SQLRule)
+	@see #SQLComment(Object,SQLRule)
+	@see #SQLComment(Object,String)
+	*/
+
+	public SQLComment(Object obj)
+	{	init(obj,null);		
+	}
+
+
+	/**
+	 * 构造方法（创建于 2002.03.08）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	&nbsp;&nbsp;&nbsp;&nbsp;本构造方法指定了创建实际时采用的数据库对象名与类命名之间的翻译规则，相当于执
+	行用	SQLComment(obj)之后再分别调用RuleDBName和RuleFieldDBName等方法.
+	
+	&nbsp;&nbsp;&nbsp;&nbsp;本方法不会改变默认的命名规则。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.03.08.
+	</pre>
+	</DL>
+* @param obj 需要生成SQLComment的对象.
+* @param rule 指定数据库对象名与类命名之间的翻译规则.
+* @see #SQLComment(Object)
+	@see #SQLComment(Object,String)
+	@see #ruleDBName(SQLRule)
+	@see #ruleFieldDBName(SQLRule)
+*/
+	public SQLComment(Object obj,SQLRule rule)
+	{	init(obj,rule);
+	}
+	
+	/**
+	 * 构造方法（创建于 2002.03.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	指定数据库对象名.相当于执行用SQLComment(Object)之后再执行setDBName(String).
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	//MyExample对应的数据库表为StreamExample
+	MyExample person = new MyExample();
+	
+	person.name = "tiger";
+	person.id = "12345342424242";
+	
+	SQLComment mycomment = new SQLComment(person,"StreamExample");
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.03.09.
+	</pre>
+	</DL>
+* @param obj 需要生成SQLComment的对象.
+* @param dbName 指定数据库对象名.
+	@see #SQLComment(Object)
+	@see #SQLComment(Object,SQLRule)
+	@see #setDBName(String)
+*/
+	public SQLComment(Object obj,String dbName)
+	{	init(obj,null);
+		setDBName(dbName);
+	}
+	
+	/**
+	 * 默认初始化属性方法（创建于 2002.02.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.02.09.
+	</pre>
+	</DL>
+* @param obj 对象实例.
+* @param rule 命名规则.
+*/
+	private void init(Object obj,SQLRule rule)
+	{ _SQL = new String[SQL_DEFAULT];
+		_PreparedSQL = new String[SQL_DEFAULT];
+		_OP = SQL_DEFAULT;
+	
+		if(rule==null) rule = DEFAULT_SQLRULE;
+		
+		_ClassType = obj.getClass();
+		_MultiClassType = new ArrayList();
+		_MultiClassType.add(_ClassType);
+		_Name = ReflectMethod.getClassName(_ClassType,true);	
+		_DBName = rule.toClassDBName(_Name);
+				
+	 	initFields(obj,rule);
+	}
+
+	/**
+	 * 初始化域属性（创建于 2002.02.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.02.09.
+	</pre>
+	</DL>
+* @param obj 对象实例.
+* @param rule 命名规则.
+*/
+	private void initFields(Object obj,SQLRule rule)
+	{	Field[] lFields;
+		ArrayList lFieldTags = new ArrayList();
+		//FieldTag[] lObjTypes = {new FieldTag()};
+
+		//lFields = _ClassType.getDeclaredFields();	
+		lFields = _ClassType.getFields();	
+	
+		for(int i=0;i<lFields.length;i++)
+			if(isValidField(lFields[i]))
+			{	FieldTag lFieldTag = new FieldTag(obj,lFields[i],rule);
+				lFieldTag._TableName = _DBName;
+				lFieldTag._ClassName = _Name; 
+				lFieldTags.add(lFieldTag);				
+			}
+				
+		_Fields = new FieldTag[lFieldTags.size()];
+		lFieldTags.toArray(_Fields);
+		//_Fields = (FieldTag [])lFieldTags.toArray(lObjTypes);
+	}
+
+	/**
+	 * 设置SQL操作类型（创建于 2002.02.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.02.09.
+	</pre>
+	</DL>
+* @param op 生成SQL语句片断的类型.
+* @return 参数列表.
+*/
+	List prepareSQL(int op)
+	{	ArrayList lArray = null;
+	
+		_OP = op;
+		
+		switch(_OP)
+		{	case SQL_INSERT:
+				lArray = prepareInsert();
+				break;
+			case SQL_UPDATE:
+				lArray = prepareUpdate();
+				break;
+			case SQL_DELETE:
+				prepareDelete();
+				break;
+			case SQL_SELECT:
+				prepareSelect(_IsMultiple);
+				break;
+			case SQL_CONDITION:
+				lArray = prepareCondition(_IsMultiple);
+				break;	
+			case SQL_SORT:
+				prepareSort();
+				break;
+			case SQL_GROUP:
+				prepareGroup();
+				break;
+			default:break;
+		}
+		
+		_OP = SQL_DEFAULT;//还原
+		
+		return lArray;
+	}
+	
+	/**
+	 * 生成预编译的INSERT子句（创建于 2002.02.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.02.09.
+	</pre>
+	</DL>
+* @return 与绑定参数对应的值数组.
+*/
+	private ArrayList prepareInsert()
+	{	String ls_cols = "",ls_vals = "";
+		ArrayList la_vals = new ArrayList();
+	
+		for(int i=0;i<_Fields.length;i++)
+		{	if(!_Fields[i]._IsHidden)
+			{	if(!ls_cols.equals("")) ls_cols += ",";
+				ls_cols += _Fields[i]._DBName;
+				if(!ls_vals.equals("")) ls_vals += ",";
+				ls_vals += _Fields[i]._BindValue;
+				la_vals.add(_Fields[i]._Value);
+			}
+		}
+		_PreparedSQL[SQL_INSERT] = "INSERT INTO " + _DBName + 
+									"(" + ls_cols + ")" + " VALUES(" + ls_vals + ")";
+									
+		return la_vals;
+	}
+	
+	/**
+	 * 生成预编译的UPDATE子句（创建于 2002.02.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.02.09.
+	</pre>
+	</DL>
+* @return 与绑定参数对应的值数组.
+*/
+	private ArrayList prepareUpdate()
+	{	String ls_cols = "",ls_vals = "",ls_expressions = "";
+		ArrayList la_vals = new ArrayList();
+	
+		for(int i=0;i<_Fields.length;i++)
+		{	if(!_Fields[i]._IsHidden)
+			{	if(!ls_expressions.equals("")) ls_expressions += ",";
+				ls_expressions += _Fields[i]._DBName + " = " + _Fields[i]._BindValue;
+				
+				la_vals.add(_Fields[i]._Value);
+			}
+		}
+		_PreparedSQL[SQL_UPDATE] = "UPDATE " + _DBName + 
+									" SET " + ls_expressions;
+									
+		return la_vals;
+	}
+
+	/**
+	 * 生成预编译的DELETE子句（创建于 2002.02.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.02.09.
+	</pre>
+	</DL>
+* @return 与绑定参数对应的值数组.
+*/
+	private void prepareDelete()
+	{	_PreparedSQL[SQL_DELETE] = "DELETE FROM " + _DBName;
+	}
+	
+
+	/**
+	 * 生成预编译的SELECT子句（创建于 2002.02.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.02.09.
+	</pre>
+	</DL>
+	@param isMultiple 是否为多表.
+* @return 与绑定参数对应的值数组.
+*/
+	private void prepareSelect(boolean isMultiple)
+	{	String ls_cols = "",ls_col;
+			
+		for(int i=0;i<_Fields.length;i++)
+		{	if(!_Fields[i]._IsHidden)
+			{	if(!ls_cols.equals("")) ls_cols += ",";
+				ls_cols += _Fields[i].getCompute(isMultiple);			
+			}
+		}
+		_PreparedSQL[SQL_SELECT] = "SELECT " + ls_cols + " FROM " + _DBName;
+	}
+	
+	/**
+	 * 生成预编译的CONDITION子句（创建于 2002.02.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.02.09.
+	修改于 2002.09.04 - 纠正多值Field产生空指针的错误.
+	</pre>
+	</DL>
+	@param isMultiple 是否为多表.
+* @return 与绑定参数对应的值数组.
+*/
+	private ArrayList prepareCondition(boolean isMultiple)
+	{	String ls_expression = "",ls_condition="";//预编译条件表达式
+		ArrayList la_vals = new ArrayList();//预编译条件表达式的值
+		boolean lb_hasCondition = false;
+	  //一般条件列,如果为多表结构，则条件表达式由子对象生成.
+		if(!_IsMultiple)
+		{	for(int i=0;i<_Fields.length;i++)
+			{	if(!_Fields[i]._IsCndHidden)
+				{	ls_condition = _Fields[i].getPreparedCondition(isMultiple);
+					
+					if(StringMethod.isValid(ls_condition))
+					{	lb_hasCondition = true;
+						if(StringMethod.isValid(ls_expression)) 
+							ls_expression += CNDRELATION_SYNTAX[_CndRelation];
+						
+						ls_expression += ls_condition;
+						
+						for(int j=0;j<_Fields[i]._CndValCount;j++)//可能出现条件值的多次引用
+							la_vals.add(_Fields[i]._Value);					
+					}
+				}
+			}
+			
+			if(lb_hasCondition)
+			{	ls_expression = "(" + ls_expression + ")";			
+				lb_hasCondition = false;
+			}
+		}
+		//附加条件列
+		for(int i=0;i<_AppendCndFields.size();i++)
+		{	FieldTag lField = (FieldTag)(_AppendCndFields.get(i));
+			ls_condition = lField.getPreparedCondition(isMultiple);
+			
+			if(StringMethod.isValid(ls_condition))
+			{	lb_hasCondition = true;
+				if(StringMethod.isValid(ls_expression)) 
+					ls_expression += CNDRELATION_SYNTAX[lField._CndRelation];
+					
+				ls_expression += ls_condition;
+				
+				if(lField._IsArray) //附加条件为between、in、childsql等
+					la_vals.addAll((ArrayList)(lField._Value));
+				else
+					for(int j=0;j<lField._CndValCount;j++)
+						la_vals.add(lField._Value);	
+			}
+		}
+		
+		if(lb_hasCondition)
+		{	ls_expression = "(" + ls_expression + ")";			
+			lb_hasCondition = false;
+		}
+				
+		//附加条件（参数格式与数据库相关）		
+		if(StringMethod.isValid(_AppendCondition))
+		{	if(StringMethod.isValid(ls_expression))
+				ls_expression += CNDRELATION_SYNTAX[_AppendConditionRelation];
+				
+			ls_expression += _AppendCondition;
+				
+			ls_expression = "(" + ls_expression + ")";
+		}
+
+		//附加条件对象（参数格式与数据库相关）		
+		for(int i=0;i<_AppendCndSQLComments.size();i++)
+		{	SQLComment lSQLComment = (SQLComment)_AppendCndSQLComments.get(i);
+			ArrayList la_appendVals = lSQLComment.prepareCondition(isMultiple);
+			ls_condition = lSQLComment.getPreparedSQL(SQL_CONDITION);
+
+			if(StringMethod.isValid(ls_condition))
+			{	lb_hasCondition = true;
+				if(StringMethod.isValid(ls_expression))
+					ls_expression += CNDRELATION_SYNTAX[lSQLComment._AppendCndRelation];
+					
+				ls_expression += ls_condition;
+				la_vals.addAll(la_appendVals);
+			}			
+		}
+		
+		if(lb_hasCondition)
+		{	ls_expression = "(" + ls_expression + ")";			
+			lb_hasCondition = false;
+		}
+		
+		_PreparedSQL[SQL_CONDITION] = (StringMethod.isValid(ls_expression)&&_OP==SQL_CONDITION)?" WHERE " + ls_expression:ls_expression;
+
+		return la_vals;
+	}
+	
+	/**
+	 * 设置对象对象属性名到数据库对象属性名的命名规则（创建于 2002.03.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	如果不采用默认的对象属性名到数据库表列名之间的命名规则,则需提供自定义的命名规则.
+	默认命名规则为对象对象属性名等于数据库对象属性名.
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	StreamExample myExample = new StreamExample();
+	myExample.uId = "wyq";
+	myExample.uName = "wu yongqing";
+	
+	SQLComment mycomment = new SQLComment(myExample);
+	
+	//rule中定义了uId -> id,uName -> name
+	mycomment.ruleFieldDBName(rule);
+	
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.03.09.
+	</pre>
+	</DL>
+* @param rule 命名规则.
+  @see #ruleDBName(SQLRule)
+  @see #SQLComment(Object,SQLRule)
+*/
+	public void ruleFieldDBName(SQLRule rule)
+	{	for(int i=0;i<_Fields.length;i++)
+			_Fields[i]._DBName = rule.toFieldDBName(_Fields[i]._Name);
+	}
+
+	/**
+	 * 设置对象名到数据库对象名的命名规则（创建于 2002.03.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	如果不采用默认的对象名到数据库对象名的命名规则,则需提供自定义的命名规则.
+	默认命名规则为对象名等于数据库对象名.
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	StreamExample myExample = new StreamExample();
+	myExample.uId = "wyq";
+	myExample.uName = "wu yongqing";
+	
+	SQLComment mycomment = new SQLComment(myExample);
+	
+	//rule中定义了StreamExample -> person_info
+	mycomment.ruleDBName(rule);	
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.03.09.
+	</pre>
+	</DL>
+* @param rule 命名规则.
+	@see #ruleFieldDBName(SQLRule)
+	@see #SQLComment(Object,SQLRule)
+*/
+	public void ruleDBName(SQLRule rule)
+	{	_DBName = rule.toClassDBName(_Name);
+	}
+	
+	/**隐藏指定的对象属性（创建于 2002.03.19）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	在生成SQL语句时,被隐藏的对象属性对应的数据库表列名将不出现在非WHERE表达式中.	
+	默认的对象属性是显式的。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	//example对应于StreamExample表，name,reg_dt,money对应于该表的列
+	example.name = "wyq";	
+	example.money = 1200;
+	example.reg_dt = null;
+	
+	//转换成SQLComment
+	SQLComment com = new SQLComment(example);
+	
+	//money不在非WHERE表达式出现
+	com.hideField("money");
+				
+	//以下语句相当于执行
+	//SELECT name,reg_dt FROM StreamExample
+	//WHERE name="wyq" AND reg_dt IS NULL AND money = 1200
+	ArrayList lArrylist = SQLCA.select(com);		
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.03.19.
+	</pre>
+	</DL>
+	@param fieldName 对象的属性名(注:不要与数据库表的列名混淆).
+	@throws NoSuchFieldException 不存在的对象属性.
+ 	@see #showField(String)
+	@see #isHiddenField(String)
+	@see #hideCndField(String)
+	@see #hideFields
+	*/
+	public void hideField(String fieldName)
+		throws NoSuchFieldException
+	{	int li_index = getFieldID(fieldName);
+		_Fields[li_index]._IsHidden = true;
+	}
+	
+ /**显示指定的对象属性（创建于 2002.03.19）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	在生成SQL语句时,显式的对象属性对应的数据库表列名将出现在非WHERE表达式中.	
+	默认的对象属性是显式的。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	//example对应于StreamExample表，name,reg_dt,money对应于该表的列
+	example.name = "wyq";	
+	example.money = 1200;
+	example.reg_dt = null;
+	
+	//转换成SQLComment
+	SQLComment com = new SQLComment(example);
+	
+	//money不在非WHERE表达式中出现
+	com.hideField("money");
+	
+	//reg_dt不在非WHERE表达式中出现
+	com.hideField("reg_dt");
+	
+	//reg_dt在非WHERE表达式中出现
+	com.showField("reg_dt");
+	
+	//以下语句相当于执行
+	//SELECT name,reg_dt FROM StreamExample
+	//WHERE name="wyq" AND reg_dt IS NULL AND money = 1200
+	ArrayList lArrylist = SQLCA.select(com);		
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.03.19.
+	</pre>
+	</DL>
+	@param fieldName 对象属性名(注:不要与数据库表的列名混淆).
+	@throws NoSuchFieldException 不存在的对象属性.
+ 	@see #hideField(String)
+	@see #isHiddenField(String)
+	@see #showCndField(String)
+	@see #showFields()
+	*/
+	public void showField(String fieldName)
+		throws NoSuchFieldException
+	{	int li_index = getFieldID(fieldName);
+		_Fields[li_index]._IsHidden = false;
+	}
+
+	/**
+	 *显示所有的对象属性（创建于 2002.03.19）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	本方法主要用于在hideField方法使用前先显示所有列.
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	//example对应于StreamExample表，name,reg_dt,money对应于该表的列
+	example.name = "wyq1";
+	example.money = 1200;
+	example.reg_dt = null;
+	
+	//转换成SQLComment
+	SQLComment com = new SQLComment(example);
+	
+	//money、reg_dt不在非WHERE表达式中出现
+	com.hideField("money");
+	com.hideField("reg_dt");
+	
+	//reg_dt不在WHERE表达式中出现
+	com.hideCndField("reg_dt");
+	
+	//name,money,reg_dt均在非WHERE表达式中出现
+	com.showFields();
+	
+	//以下语句相当于执行
+	//SELECT name,reg_dt,money FROM StreamExample
+	//WHERE name="wyq1" AND money = 1200		
+	ArrayList lArrylist = SQLCA.select(com);
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.03.19.
+	</pre>
+	</DL>
+	 * @see #hideFields
+		 @see #showField(String)
+	 */
+	
+	public void showFields()
+	{	for(int i=0;i<_Fields.length;i++)
+			_Fields[i]._IsHidden = false;
+	}
+	
+	/**
+	 *隐藏所有的对象属性（创建于 2002.03.19）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	主要用于在showField方法使用前先将所有列隐藏.
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+//example对应于StreamExample表，name,reg_dt,money对应于该表的列
+	example.name = "wyq1";
+	example.money = 1200;
+	example.reg_dt = null;
+	
+	//转换成SQLComment
+	SQLComment com = new SQLComment(example);
+	
+	//name,money,reg_dt均不在非WHERE表达式中出现
+	com.hideFields();
+	
+	//money、reg_dt在非WHERE表达式中出现
+	com.showField("money");
+	com.showField("reg_dt");
+	
+	//reg_dt不在WHERE表达式中出现
+	com.hideCndField("reg_dt");	
+	
+	//以下语句相当于执行
+	//SELECT reg_dt,money FROM StreamExample
+	//WHERE name="wyq1" AND money = 1200		
+	ArrayList lArrylist = SQLCA.select(com);
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.03.19.
+	</pre>
+	</DL>
+	 * @see #showFields
+		 @see #hideField(String)
+	 */
+	
+	public void hideFields()
+	{	for(int i=0;i<_Fields.length;i++)
+			_Fields[i]._IsHidden = true;
+	}
+	
+
+	/**
+	 * <img src="important.gif" width="20" height="20" border="0">隐藏符合指定特征的对象属性（创建于 2002.08.01）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	特征模式请参见：	
+	VALUE_NOT_VALID
+	VALUE_IS_VALID
+	VALUE_IS_NULL
+	VALUE_NOT_NULL
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.01.
+	</pre>
+	</DL>
+* @param mode 特征模式.
+* @see #hideFields()
+  @see #hideFields(String)
+	@see #hideCndFields(int)
+	@see #showCndFields(int)
+	@see #showFields(int)
+*/
+	public void hideFields(int mode)
+	{	for(int i=0;i<_Fields.length;i++)
+			if(isMatchField(_Fields[i],mode))
+				_Fields[i]._IsHidden = true;
+	}
+
+/**
+	* <img src="important.gif" width="20" height="20" border="0">隐藏符合指定特征的条件对象属性（创建于 2002.08.01）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	特征模式请参见：	
+	VALUE_NOT_VALID
+	VALUE_IS_VALID
+	VALUE_IS_NULL
+	VALUE_NOT_NULL
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.01.
+	</pre>
+	</DL>
+* @param mode 特征模式.
+* @see #hideCndFields()
+  @see #hideCndFields(String)
+	@see #hideFields(int)
+	@see #showCndFields(int)
+	@see #showFields(int)
+*/
+	public void hideCndFields(int mode)
+	{	for(int i=0;i<_Fields.length;i++)
+			if(isMatchField(_Fields[i],mode))
+				_Fields[i]._IsCndHidden = true;
+	}
+	
+	/**
+	 * <img src="important.gif" width="20" height="20" border="0">显示符合指定特征的对象属性（创建于 2002.08.01）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	特征模式请参见：	
+	VALUE_NOT_VALID
+	VALUE_IS_VALID
+	VALUE_IS_NULL
+	VALUE_NOT_NULL
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.01.
+	</pre>
+	</DL>
+* @param mode 特征模式.
+* @see #showFields()
+  @see #showFields(String)
+	@see #hideCndFields(int)
+	@see #showCndFields(int)
+	@see #hideFields(int)
+*/
+	public void showFields(int mode)
+	{	for(int i=0;i<_Fields.length;i++)
+			if(isMatchField(_Fields[i],mode))
+				_Fields[i]._IsHidden = false;
+	}
+	
+	/**
+	 * <img src="important.gif" width="20" height="20" border="0">显示符合指定特征的条件对象属性（创建于 2002.08.01）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	特征模式请参见：	
+	VALUE_NOT_VALID
+	VALUE_IS_VALID
+	VALUE_IS_NULL
+	VALUE_NOT_NULL
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.01.
+	</pre>
+	</DL>
+* @param mode 特征模式.
+* @see #showCndFields()
+  @see #showCndFields(String)
+	@see #hideCndFields(int)
+	@see #showFields(int)
+	@see #hideFields(int)
+*/
+	public void showCndFields(int mode)
+	{	for(int i=0;i<_Fields.length;i++)
+			if(isMatchField(_Fields[i],mode))
+				_Fields[i]._IsCndHidden = false;
+	}
+	
+	/**
+	 * 隐藏作为条件的对象属性（创建于 2002.03.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	在生成SQL语句时,被隐藏的对象属性对应的数据库表列名将不出现在WHERE表达式中.
+	默认的对象属性是显式的。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	//example对应于StreamExample表，name,reg_dt,money对应于该表的列
+	example.name = "wyq1";
+	example.money = 1200;
+	example.reg_dt = null;
+	
+	//转换成SQLComment
+	SQLComment com = new SQLComment(example);
+	
+	//reg_dt不在WHERE表达式中出现
+	com.hideCndField("reg_dt");	
+	
+	//以下语句相当于执行
+	//SELECT name,reg_dt,money FROM StreamExample
+	//WHERE name="wyq1" AND money = 1200		
+	ArrayList lArrylist = SQLCA.select(com);
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.03.09.
+	</pre>
+	</DL>
+	 * @param fieldName 对象属性名(注:不要与数据库表的列名混淆).
+	 * @exception NoSuchFieldException 不存在的对象属性.
+	 * @see #showCndField(String)
+		 @see #isHiddenCndField(String)
+		 @see #hideField(String)
+		 @see #hideFields()
+	 */
+	
+	public void hideCndField(String fieldName)
+		throws NoSuchFieldException
+	{	int li_index = getFieldID(fieldName);
+		_Fields[li_index]._IsCndHidden = true;
+	}
+	
+  /**
+	 * 显示作为条件的对象属性（创建于 2002.03.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	在生成SQL语句时,显式的对象属性对应的数据库表列名将出现在WHERE表达式中.
+	默认的对象属性是显式的。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	//example对应于StreamExample表，name,reg_dt,money对应于该表的列
+	example.name = "wyq1";
+	example.money = 1200;
+	example.reg_dt = null;
+	
+	//转换成SQLComment
+	SQLComment com = new SQLComment(example);
+	
+	//隐藏所有条件对象属性
+	com.hideCndFields;	
+	
+	//显示条件对象属性name
+	com.showCndField("name");
+	
+	//以下语句相当于执行
+	//SELECT name,reg_dt,money FROM StreamExample
+	//WHERE name="wyq1"
+	ArrayList lArrylist = SQLCA.select(com);
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.03.09.
+	</pre>
+	</DL>
+	 * @param fieldName 对象属性名(注:不要与数据库表的列名混淆).
+	 * @exception NoSuchFieldException 不存在的对象属性.
+	 * @see #hideCndField(String)
+		 @see #isHiddenCndField(String)
+		 @see #showField(String)
+		 @see #showCndFields
+	 */
+	
+	public void showCndField(String fieldName)
+		throws NoSuchFieldException
+	{	int li_index = getFieldID(fieldName);
+		_Fields[li_index]._IsCndHidden = false;
+	}
+	
+	/**
+	 *显示所有作为条件的对象属性（创建于 2002.03.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	主要用于在使用hideCndField方法之前，使所有条件对象属性为显示。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	//example对应于StreamExample表，name,reg_dt,money对应于该表的列
+	example.name = "wyq1";
+	example.money = 1200;
+	example.reg_dt = null;
+	
+	//转换成SQLComment
+	SQLComment com = new SQLComment(example);
+	
+	//隐藏条件对象属性name
+	com.hideCndField("name");	
+	
+	//显示所有条件对象属性
+	com.showCndFields();
+	
+	//隐藏条件对象属性money,reg_dt
+	com.hideCndFields("money,reg_dt");	
+	
+	//以下语句相当于执行
+	//SELECT name,reg_dt,money FROM StreamExample
+	//WHERE name="wyq1"
+	ArrayList lArrylist = SQLCA.select(com);
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.03.09.
+	</pre>
+	</DL>
+	 * @see #hideCndFields
+		 @see #showCndField(String)
+	 */
+	
+	public void showCndFields()
+	{	for(int i=0;i<_Fields.length;i++)
+			_Fields[i]._IsCndHidden = false;
+	}
+	
+	/**
+	 *隐藏所有条件对象属性对应的数据库域（创建于 2002.03.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	主要用于在showCndField方法使用前，隐藏所有条件对象属性。
+	</pre>
+	<DT><B>示例：</B><DD>
+		<pre>
+	//example对应于StreamExample表，name,reg_dt,money对应于该表的列
+	example.name = "wyq1";
+	example.money = 1200;
+	example.reg_dt = null;
+	
+	//转换成SQLComment
+	SQLComment com = new SQLComment(example);
+	
+	//隐藏条件对象属性name
+	com.hideCndFields();	
+
+	//显示条件对象属性money,reg_dt
+	com.showCndFields("money,reg_dt");	
+	
+	//以下语句相当于执行
+	//SELECT name,reg_dt,money FROM StreamExample
+	//WHERE money= 1200 and reg_dt is NULL
+	ArrayList lArrylist = SQLCA.select(com);
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.03.09.
+	</pre>
+	</DL>
+	 * @see #showCndFields
+		 @see #hideCndField(String)
+	 */
+	
+	public void hideCndFields()
+	{	for(int i=0;i<_Fields.length;i++)
+			_Fields[i]._IsCndHidden = true;
+	}
+
+
+	/**
+	 * <img src="important.gif" width="20" height="20" border="0">显示指定的多个对象属性（创建于 2002.03.09）.
+<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	如果只有一个列，建议用showField(String)方法代替本方法。
+	showFields("*")相当于showFields()
+	showFields("")则忽略本次操作
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	//以下程序相当于执行
+	//com.showField("name");
+	//com.showField("reg_dt");	
+	com.showFields("name,reg_dt");		
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.03.09.
+	</pre>
+	</DL>
+	 * @param fieldNames 对象属性名用','分隔,"*"代表所有的对象属性，空字符串不起作用.
+	 * @exception NoSuchFieldException	不存在的对象属性.
+	 * @see #showFields(String[])
+		 @see #showField(String)
+		 @see #showFields
+	 */
+	public void showFields(String fieldNames)
+		throws NoSuchFieldException
+	{	if(fieldNames.equals("")) return;
+	
+		if(fieldNames.equals("*")) 
+			showFields();
+		else
+		{	String [] ls_FieldName = StringMethod.toArray(fieldNames,FIELDNAME_APART);
+			showFields(ls_FieldName);
+		}
+	}
+
+	
+/**
+* <img src="new.gif" width="28" height="11" border="0">显示指定的多个对象属性（创建于 2002.12.14）.
+<P><DL>
+<DT><B>说明：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>示例：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>日志：</B><DD>
+<pre>
+创建于 2002.12.14.
+</pre>
+</DL>
+	 * @param fieldNames 对象属性名数组.
+	 * @exception NoSuchFieldException	不存在的对象属性.
+	 * @see #showFields(String)
+		 @see #showField(String)
+		 @see #showFields()
+*/
+	public void showFields(String[] fieldNames)
+		throws NoSuchFieldException
+	{	for(int i=0;i<fieldNames.length;i++)
+				showField(fieldNames[i]);
+	}
+	/**
+	 * <img src="important.gif" width="20" height="20" border="0">隐藏指定的多个对象属性（创建于 2002.03.09）.
+<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	如果只有一个列，建议用hideField(String)方法代替本方法。
+	hideFields("*")相当于hideFields()
+	hideFields("")则忽略本次操作
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	//以下程序相当于执行
+	//com.hideField("name");
+	//com.hideField("reg_dt");	
+	com.hideFields("name,reg_dt");		
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.03.09.
+	</pre>
+	</DL>
+	 * @param fieldNames 对象属性名用','分隔,"*"代表所有的对象属性，空字符串不起作用.
+	 * @exception NoSuchFieldException	不存在的对象属性.
+	 * @see #hideFields(String[])
+		 @see #hideField(String)
+		 @see #hideFields
+	 */
+
+	public void hideFields(String fieldNames)
+		throws NoSuchFieldException
+	{	if(fieldNames.equals("")) return;
+	
+		if(fieldNames.equals("*")) 
+			hideFields();
+		else
+		{	String [] ls_FieldName = StringMethod.toArray(fieldNames,FIELDNAME_APART);
+		
+			hideFields(ls_FieldName);
+		}
+	}
+
+	
+/**
+* <img src="new.gif" width="28" height="11" border="0">隐藏指定的多个对象属性（创建于 2002.12.14）.
+<P><DL>
+<DT><B>说明：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>示例：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>日志：</B><DD>
+<pre>
+创建于 2002.12.14.
+</pre>
+</DL>
+	 * @param fieldNames 对象属性名数组.
+	 * @exception NoSuchFieldException	不存在的对象属性.
+	 * @see #hideFields(String)
+		 @see #hideField(String)
+		 @see #hideFields
+*/
+	public void hideFields(String[] fieldNames)
+		throws NoSuchFieldException
+	{	for(int i=0;i<fieldNames.length;i++)
+				hideField(fieldNames[i]);
+	}
+	/**
+	 * 获取匹配条件的对象属性名清单（创建于 2002.03.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	返回的清单以FIELDNAME_APART分隔.
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.03.09.
+	</pre>
+	</DL>
+* @param rule 匹配条件.
+* @return 符合条件的对象属性名清单.
+* @see #VALUE_NOT_VALID
+	@see #VALUE_IS_VALID
+*/
+
+	public String getFieldNames(int rule)
+	{	String ls_cols = "";
+	
+		for(int i=0;i<_Fields.length;i++)
+		{	if(isMatchField(_Fields[i],rule))
+				ls_cols = StringMethod.addChildString(ls_cols,_Fields[i].getName(_IsMultiple),FIELDNAME_APART);
+		}
+		
+		return ls_cols;
+	}
+	/**
+	 * 获取所有的对象属性名清单（创建于 2002.03.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	返回的清单以FIELDNAME_APART分隔.
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.03.09.
+	</pre>
+	</DL>
+* @return 对象属性名清单.
+*/
+	
+	public String getFieldNames()
+	{	String ls_cols = "";
+	
+		for(int i=0;i<_Fields.length;i++)
+		{	ls_cols = StringMethod.addChildString(ls_cols,_Fields[i].getName(_IsMultiple),FIELDNAME_APART);
+		}
+		
+		return ls_cols;
+	}
+	/**列值不为null,且字符串不为""（创建于 2002.07.31）.*/
+	public static final int VALUE_NOT_VALID = -1;
+	/**列值为null,或者字符串为""（创建于 2002.07.31）.*/
+	public static final int VALUE_IS_VALID = 1;
+	/**列值为null（创建于 2002.07.31）.*/
+	public static final int VALUE_IS_NULL = 2;
+	/**列值不为null（创建于 2002.07.31）.*/
+	public static final int VALUE_NOT_NULL = -2;
+	/**字符串为"".*/
+	//public static final int VALUE_IS_EMPTY = 3;
+	/**字符串不为""*/
+	//public static final int VALUE_NOT_EMPTY = -3;
+	
+	/**
+	 * 判断域是否匹配要求（创建于 2002.07.31）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.31.
+	</pre>
+	</DL>
+* @param f 域实例.
+* @param rule 匹配规则.
+* @return 是否匹配.
+*/
+	
+	private boolean isMatchField(FieldTag f,int rule)
+	{ switch(rule)
+		{case VALUE_NOT_VALID	:	return (f._Value==null) || !StringMethod.isValid((f._Value).toString());
+		 case VALUE_IS_VALID	:	return (f._Value!=null) && StringMethod.isValid((f._Value).toString());
+		 case VALUE_NOT_NULL	:	return (f._Value!=null);
+		 case VALUE_IS_NULL		: return (f._Value==null);
+		 //case VALUE_NOT_EMPTY	: return (f._Value==null||!(f._Value.toString().equals("")));
+		 //case VALUE_IS_EMPTY	: return (f._Value.toString().equals(""));
+		 default :return true;
+		}		
+	}
+	/**
+	 * <img src="important.gif" width="20" height="20" border="0">显示指定的多个条件对象属性.
+<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	如果只有一个列，建议用showCndField(String)方法代替本方法。
+	showCndFields("*")相当于showCndFields().
+	showCndFields("")则忽略本次操作.
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	//以下程序相当于执行
+	//com.showCndField("name");
+	//com.showCndField("reg_dt");	
+	com.showCndFields("name,reg_dt");		
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.03.09.
+	</pre>
+	</DL>
+	 * @param fieldNames 对象属性名用“,”分隔,“*”代表所有的对象域，空字符串不起作用.
+	 * @exception NoSuchFieldException	不存在的对象属性名.
+	 * @see #hideCndFields(String)
+		 @see #showCndField(String)
+		 @see #showCndFields
+	 */
+	public void showCndFields(String fieldNames)
+		throws NoSuchFieldException
+	{	if(fieldNames.equals("")) return;
+	
+		if(fieldNames.equals("*")) 
+			showCndFields();
+		else
+		{	String [] ls_FieldName = StringMethod.toArray(fieldNames,FIELDNAME_APART);
+		
+			showCndFields(ls_FieldName);
+		}
+	}
+	
+
+	
+/**
+* <img src="new.gif" width="28" height="11" border="0">显示指定的多个条件对象属性（创建于 2002.12.14）.
+<P><DL>
+<DT><B>说明：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>示例：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>日志：</B><DD>
+<pre>
+创建于 2002.12.14.
+</pre>
+</DL>
+	 * @param fieldNames 对象属性名数组.
+	 * @exception NoSuchFieldException	不存在的对象属性名.
+	 * @see #showCndFields(String)
+		 @see #showCndField(String)
+		 @see #showCndFields
+*/
+	public void showCndFields(String[] fieldNames)
+		throws NoSuchFieldException
+	{	for(int i=0;i<fieldNames.length;i++)
+				showCndField(fieldNames[i]);
+	}
+	/**
+	 * <img src="important.gif" width="20" height="20" border="0">隐藏指定的多个条件对象属性（创建于 2002.03.09）.
+<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	如果只有一个列，建议用hideCndField(String)方法代替本方法。
+	hideCndFields("*")相当于hideCndFields()
+	hideCndFields("")则忽略本次操作
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	//以下程序相当于执行
+	//com.hideCndField("name");
+	//com.hideCndField("reg_dt");	
+	com.hideCndFields("name,reg_dt");		
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.03.09.
+	</pre>
+	</DL>
+	 * @param fieldNames 对象对象属性名用“,”分隔,“*”代表所有的对象域，空字符串不起作用.
+	 * @exception NoSuchFieldException	不存在的对象对象属性名.
+	 * @see #hideCndFields(String[])
+		 @see #hideCndField(String)
+		 @see #hideCndFields
+	 */
+
+	public void hideCndFields(String fieldNames)
+		throws NoSuchFieldException
+	{	if(fieldNames.equals("")) return;
+	
+		if(fieldNames.equals("*")) 
+			hideCndFields();
+		else
+		{	String [] ls_FieldName = StringMethod.toArray(fieldNames,FIELDNAME_APART);
+		
+			hideCndFields(ls_FieldName);
+		}
+	}
+	
+	
+/**
+* <img src="new.gif" width="28" height="11" border="0">隐藏指定的多个条件对象属性（创建于 2002.12.14）.
+<P><DL>
+<DT><B>说明：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>示例：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>日志：</B><DD>
+<pre>
+创建于 2002.12.14.
+</pre>
+</DL>
+	 * @param fieldNames 对象对象属性名数组.
+	 * @exception NoSuchFieldException	不存在的对象对象属性名.
+	 * @see #hideCndFields(String)
+		 @see #hideCndField(String)
+		 @see #hideCndFields()
+*/
+	public void hideCndFields(String[] fieldNames)
+		throws NoSuchFieldException
+	{	for(int i=0;i<fieldNames.length;i++)
+			hideCndField(fieldNames[i]);
+	}
+	
+	/**判断对象属性名是否被隐藏（创建于 2002.03.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.03.09.
+	</pre>
+	</DL>
+	 * @param fieldName 对象属性名(注:不要与数据库表的列名混淆).
+	 	 @return true代表已隐藏，反之为false.
+	 * @exception NoSuchFieldException 不存在的对象属性.
+	 * @see #showField(String)
+		 @see #hideField(String)
+		 @see #isHiddenCndField(String)
+	*/
+	public boolean isHiddenField(String fieldName)
+		throws NoSuchFieldException
+	{	int li_index = getFieldID(fieldName);		
+		return _Fields[li_index]._IsHidden;
+	}
+	
+	/**判断指定的条件对象属性是否被隐藏（创建于 2002.03.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.03.09.
+	</pre>
+	</DL>
+	 * @param fieldName 对象属性名(注:不要与数据库表的列名混淆).
+	 	 @return true代表已隐藏，反之为false.
+	 * @exception NoSuchFieldException 不存在的对象属性.
+	 * @see #showCndField(String)
+		 @see #hideCndField(String)
+		 @see #isHiddenField(String)
+	*/
+	public boolean isHiddenCndField(String fieldName)
+		throws NoSuchFieldException
+	{	int li_index = getFieldID(fieldName);
+		return _Fields[li_index]._IsCndHidden;
+	}
+	
+	/**设置与指定对象属性对应的的数据库表列名（创建于 2002.03.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	默认的对象属性名等于数据库表列名.
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.03.09.
+	</pre>
+	</DL>
+	@param fieldName 对象属性名(注:不要与数据库表的列名混淆).
+	@param dbName 对应的数据库表列名.
+	@throws NoSuchFieldException 不存在的对象属性.
+	@see #getFieldDBName(String)
+	@see #setFieldCndExpression(String,String)
+	*/
+	public void setFieldDBName(String fieldName,String dbName)
+		throws NoSuchFieldException
+	{	int li_index = getFieldID(fieldName);
+		_Fields[li_index]._DBName = dbName;
+	}
+	
+	/**取对象属性对应的数据库表列名（创建于 2002.03.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.03.09.
+	</pre>
+	</DL>
+	@param fieldName 对象属性名(注:不要与数据库表的列名混淆).
+	@return 对应的数据库表列名.
+	@throws NoSuchFieldException 不存在的对象属性.
+	@see #setFieldDBName(String,String)
+	*/
+	public String getFieldDBName(String fieldName)
+		throws NoSuchFieldException
+	{	return getFieldProperty(fieldName,FIELD_DBNAME);
+	}
+	
+/**<img src="important.gif" width="20" height="20" border="0">设置对象属性的条件表达式（创建于 2002.04.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	&nbsp;&nbsp;&nbsp;&nbsp;条件表达式主要用于生成SQL语句时作为WHERE表达式的组成部分。SQLComment为每个
+	对象属性提供了默认的条件表达式:
+	
+	# = @
+	
+	其中"#"代表数据库列名,"="是操作符,"@"代表列值的占位符.
+	
+	如果数据库列名为"Name",当前值为"wyq",则将来的生成条件是:
+	
+	Name = 'wyq'
+	
+	如果将表达式改为 # like @,则将来的生成条件是:
+	
+	Name like 'wyq'
+	
+	当然你也可以直接采用?代替@,但建议不要这样做.
+	
+	&nbsp;&nbsp;&nbsp;&nbsp;另外，还有一种占位符"$"，称为伪值，其含义即在生成条件时以	当前值的字符串形式
+	插入该占位符所处的位置，例如设定表达式为
+	# like '$%'
+	
+	则将来生成的条件是：
+	
+	Name like 'wyq%'
+	
+	&nbsp;&nbsp;&nbsp;&nbsp;值得注意的是，采用伪值占位符时必须保证对数据库SQL语句中的变量表示非常了解，
+	否则将会产生意想不到的错误。
+	
+	当条件值为null时，以下条件表达式会做相应的自动修正：
+	
+	"# = @"     =>   "# IS NULL"
+	"# != @"    =>   "# IS NOT NULL"
+	"# <> @"    =>   "# IS NOT NULL"
+	
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>	
+	//假设对象属性reg_dt当前的值为1997-01-08
+	//以下程序将在转换SQL语句的WHERE表达式时生成
+	//to_char(reg_dt,'yyyy-mm') = to_char(1997-01-08,'yyyy-mm')
+	com.setFieldCndExpression("reg_dt","to_char(#,'yyyy-mm') = to_char(@,'yyyy-mm')");
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.04.22.
+	修改于 2002.12.18 - 增加当条件值为null时的自动修正功能.	
+	</pre>
+	</DL>
+	@param fieldName 对象属性名(注:不要与数据库表的列名混淆).
+	@param cndExpression 条件表达式。
+	@throws NoSuchFieldException 不存在的对象属性。
+	@see #getFieldCndExpression(String)
+	@see #setFieldDBName(String,String)
+* @see #setFieldsCndExpression(String)
+* @see #setFieldsCndExpression(String,String)
+*/
+	public void setFieldCndExpression(String fieldName,String cndExpression)
+		throws NoSuchFieldException
+	{	setFieldProperty(fieldName,FIELD_CNDEXPRESSION,cndExpression);
+	}
+	
+
+	/**
+	 * 设置对象所有属性的条件表达式（创建于 2002.08.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.22.
+	</pre>
+	</DL>
+* @param cndExpression 条件表达式.
+* @see #setFieldCndExpression(String,String)
+* @see #setFieldsCndExpression(String,String)
+*/
+	public void setFieldsCndExpression(String cndExpression)
+	{	for(int i=0;i<_Fields.length;i++)
+			_Fields[i]._CndExpression = cndExpression;
+	}
+
+
+	/**
+	 * 设置对象的多个属性的条件表达式（创建于 2002.08.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	fieldNames 为"*"时相当于执行setGroupFields()
+	fieldNames 为""时被忽略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.22.
+	</pre>
+	</DL>
+* @param fieldNames 对象属性名用“,”分隔,“*”代表所有的对象域.
+* @param cndExpression 条件表达式.
+* @exception NoSuchFieldException	不存在的对象属性名.
+* @see #setFieldCndExpression(String,String)
+* @see #setFieldsCndExpression(String)
+* @see #setFieldsCndExpression(String[],String)
+*/
+	public void setFieldsCndExpression(String fieldNames,String cndExpression)
+		throws NoSuchFieldException
+	{	if(fieldNames.equals("")) return;
+	
+		if(fieldNames.equals("*")) 
+			setFieldsCndExpression(cndExpression);
+		else
+		{	String [] ls_FieldName = StringMethod.toArray(fieldNames,FIELDNAME_APART);
+		
+			setFieldsCndExpression(ls_FieldName,cndExpression);
+		}
+	}
+	
+/**
+* <img src="new.gif" width="28" height="11" border="0">设置对象的多个属性的条件表达式（创建于 2002.12.14）.
+<P><DL>
+<DT><B>说明：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>示例：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>日志：</B><DD>
+<pre>
+创建于 2002.12.14.
+</pre>
+</DL>
+* @param fieldNames 对象属性名数组.
+* @param cndExpression 条件表达式.
+* @exception NoSuchFieldException	不存在的对象属性名.
+* @see #setFieldCndExpression(String,String)
+* @see #setFieldsCndExpression(String)
+* @see #setFieldsCndExpression(String,String)
+*/
+	public void setFieldsCndExpression(String[] fieldNames,String cndExpression)
+		throws NoSuchFieldException
+	{	for(int i=0;i<fieldNames.length;i++)
+			setFieldCndExpression(fieldNames[i],cndExpression);
+	}
+	/**取对象域的数据库域条件表达式模式（创建于 2002.04.22）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>	
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.04.22.
+	</pre>
+	</DL>
+	@param fieldName 对象属性名(注:不要与数据库表的列名混淆).
+	@return 条件表达式。
+	@throws NoSuchFieldException 不存在的对象属性。
+	@see #setFieldCndExpression(String,String)
+	*/
+	public String getFieldCndExpression(String fieldName)
+		throws NoSuchFieldException
+	{	return getFieldProperty(fieldName,FIELD_CNDEXPRESSION);
+	}
+	
+
+	/**
+	 * 判断列是否可被用于生成表达式（创建于 2002.04.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	目前的规则是：当且仅当公共列，且为JDBC支持的类型
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.04.09.
+	</pre>
+	</DL>
+* @param f 列实例
+* @return 是否为有效的列
+*/
+	private static boolean isValidField(Field f)
+	{	return ReflectMethod.isPublicField(f) && DBMS.isSupportedField(f);
+	}
+
+
+	/**
+	 * 根据列名取索引号（创建于 2002.04.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.04.09.
+	</pre>
+	</DL>
+	@param FieldName 对象属性名
+	@return 索引号
+*/
+	private int indexOfField(String fieldName)
+	{	for(int i=0;i<_Fields.length;i++)
+		{	if(_Fields[i].getName(_IsMultiple).equals(fieldName)) return i;
+		}
+		
+		return -1;
+	}
+
+	/**
+	 * 根据列名取索引号（创建于 2002.04.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.04.09.
+	</pre>
+	</DL>
+	@param fieldName 对象属性名
+	@return 索引号
+* @exception NoSuchFieldException 不存在的属性名.
+*/
+	private int getFieldID(String fieldName)
+		throws NoSuchFieldException
+	{	int li_index = indexOfField(fieldName);
+		if(li_index < 0) throw new NoSuchFieldException(fieldName);
+		return li_index;
+	}
+	
+	/**
+	 * 取预编译过的SQL语句（创建于 2002.04.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	子句种类请参见：
+	SQL_XXX
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.04.09.
+	</pre>
+	</DL>
+* @param op SQL子句种类.
+* @return SQL子句.
+*/
+	String getPreparedSQL(int op)
+	{	return _PreparedSQL[op];
+	}
+
+	/**
+	 * 取生成扩展信息对象的类型（创建于 2002.04.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	用于DBTrans中，生成ArrayList时的对象类型。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.04.09.
+	</pre>
+	</DL>
+* @return 对象类型.
+*/
+	Class getClassType()
+	{	return _ClassType;
+	}
+
+
+	/**
+	 * 获取实例对应的数据库表名（创建于 2002.04.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.04.09.
+	</pre>
+	</DL>
+* @return 数据库对象名.
+* @see #setDBName(String)
+*/	
+	public String getDBName()
+	{	return _DBName;
+	}
+
+	/**
+	 * 设置实例对应的数据库表名（创建于 2002.04.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	默认的规则为数据库表名等于忽略路径的对象名
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	//MyExample对应于库表user_list	
+	MyExample user = new MyExample("wyq","wu yongqing");
+	com.setDBName("user_list");
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.04.09.
+	</pre>
+	</DL>
+* @param dbname 数据库对象名.
+* @see #getDBName()
+  @see #SQLComment(Object,String)
+*/
+	public void setDBName(String dbName)
+	{	_DBName = dbName;
+	}	
+
+
+	/**
+	 * 复制一个新的对象（创建于 2002.04.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	克隆一个新的SQLcomment实例.用于DBTrans.update(SQLComment)
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.04.09.
+	</pre>
+	</DL>
+* @return 复制后的新对象.
+* @see DBTrans#update(SQLComment)
+*/
+	SQLComment copy()
+	{	try 
+		{	return (SQLComment) super.clone();
+		}
+		catch(CloneNotSupportedException e)
+		{	return null;
+		}
+	}	
+	
+	/**关系符常量,代表"and"关系（创建于 2002.04.09）.*/
+	public static final int CNDRELATION_AND = 0;
+	/**关系符常量,代表"or"关系（创建于 2002.04.09）.*/
+	public static final int CNDRELATION_OR = 1;
+	/**条件对象属性之间的默认关系符（创建于 2002.04.09）.*/
+	private int _CndRelation = CNDRELATION_AND;
+	/**条件关系符（创建于 2002.04.09）.*/
+	private static final String[] CNDRELATION_SYNTAX = {" AND "," OR "};
+	
+	/**
+	 * <img src="important.gif" width="20" height="20" border="0">设置当前实例的条件对象属性之间的关系符（创建于 2002.04.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	关系符的定义请参见：
+	CNDRELATION_AND
+	CNDRELATION_OR
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.04.09.
+	</pre>
+	</DL>
+* @param rela 关系常量.
+* @see #CNDRELATION_AND
+	@see #CNDRELATION_OR
+	@see #getCndRelation()
+*/
+	public void setCndRelation(int rela)
+	{	if(!isSupportedCndRelation(rela))
+ 			throw new IllegalArgumentException("CndRelation: " + rela);		
+					
+		_CndRelation = rela;
+	}	
+	
+
+	/**
+	 * 判断关系符的合法性（创建于 2002.04.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.04.09.
+	</pre>
+	</DL>
+* @param rela 条件关系符.
+* @return 是否有效.
+* @see setCndRelation(int)
+*/
+	private boolean isSupportedCndRelation(int rela)
+	{	return (CNDRELATION_AND <= rela && rela <= CNDRELATION_OR);
+	}
+	
+	/**
+	 * 获取当前实例的条件对象属性之间的关系符（创建于 2002.04.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.04.09.
+	</pre>
+	</DL>
+* @return 当前实例的条件对象属性之间的关系符.
+* @see #CNDRELATION_AND
+	@see #CNDRELATION_OR
+	@see #setCndRelation(int)
+*/
+	public int getCndRelation()
+	{	return _CndRelation;
+	}
+	
+	/**条件域之间的关系表达式（创建于 2002.04.09）.*/
+	private String _CndRelationExpression;
+
+	/**not Finished
+	 * 根据关系表达式设置条件域之间的关系组合.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	& 代表"and"关系。
+	|	代表"or"关系。
+	()用来指定关系表达式之间的优先级。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	</DL>
+* @param relationMode description.
+* @return description.
+* @see package.class
+*/
+	void setCndRelationExpression(String relationMode)
+	{
+	}
+	
+	/**查询域的排序模式（创建于 2002.04.09）.*/
+	private String _SortExpression = "";
+	/**顺序模式（创建于 2002.04.09）.*/
+	public static final int SORT_ASC = 0;
+	/**逆序模式（创建于 2002.04.09）.*/
+	public static final int SORT_DESC = 1;
+	/**排序模式表达式（创建于 2002.04.09）.*/
+	private static final String[] SORT_SYNTAX = {" ASC"," DESC"};
+	
+	/**
+	 * 生成排序语句（创建于 2002.04.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.04.09.
+	</pre>
+	</DL>
+*/
+	private void prepareSort()
+	{	_PreparedSQL[SQL_SORT] = (StringMethod.isValid(_SortExpression)&&_OP==SQL_SORT)?" ORDER BY " + _SortExpression:_SortExpression;
+	}
+	
+	/**
+	 * 设置对象属性的排序模式（创建于 2002.04.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	可以多次使用，按调用的先后顺序设定排序的优先级。
+	
+	mode的值请参见：
+	SQLComment.SORT_ASC
+	SQLComment.SORT_DESC
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.04.09.
+	</pre>
+	</DL>
+* @param fieldName 需要排序的对象属性名.
+* @param mode 排序模式.
+* @exception NoSuchFieldException 不存在的域.
+* @see #clearSort()
+	@see #SORT_ASC
+	@see #SORT_DESC
+*/
+	public void setSortField(String fieldName,int mode)
+		throws NoSuchFieldException
+	{	int i = getFieldID(fieldName);
+		
+		if(!isSupportedSort(mode))
+			throw new IllegalArgumentException("SortMode: " + mode);		
+						
+		_SortExpression = StringMethod.addChildString(_SortExpression,
+														_Fields[i].getSortCompute(_IsMultiple) + SORT_SYNTAX[mode],FIELDNAME_APART);
+	}
+
+
+	/**
+	 * 是否为支持的排序类型（创建于 2002.04.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.04.09.
+	</pre>
+	</DL>
+* @param mode 排序类型.
+* @return 是否有效.
+* @see setSortField(String,int)
+*/
+	private boolean isSupportedSort(int mode)
+	{ return (mode >= SORT_ASC && mode <= SORT_DESC);
+	}
+	
+	
+	/**
+	 * 清除当前实例对象属性的排序方式（创建于 2002.04.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.04.09.
+	</pre>
+	</DL>
+*/
+	public void clearSort()
+	{	_SortExpression = "";
+	}
+	
+	/**查询域的分组模式（创建于 2002.04.09）.*/
+	private String _GroupExpression = "";
+
+	/**
+	 * 生成GROUP BY语句（创建于 2002.04.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.04.09.
+	</pre>
+	</DL>
+*/
+	private void prepareGroup()
+	{	_PreparedSQL[SQL_GROUP] = (StringMethod.isValid(_GroupExpression)&&_OP==SQL_GROUP)?" GROUP BY " + _GroupExpression:_GroupExpression;
+	}
+
+	/**
+	 * 设置对象属性的分组模式（创建于 2002.04.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	可以多次使用，按调用的先后顺序设定排序的优先级。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.04.09.
+	</pre>
+	</DL>
+* @param fieldName 需要分组的对象属性名.
+* @exception NoSuchFieldException 不存在的域.
+* @see #clearGroup()
+	@see #setGroupFields()
+	@see #setGroupFields(String)
+*/
+	public void setGroupField(String fieldName)
+		throws NoSuchFieldException
+	{	int i = getFieldID(fieldName);
+	
+		_GroupExpression = StringMethod.addChildString(_GroupExpression,
+																	_Fields[i].getGroupCompute(_IsMultiple),FIELDNAME_APART);
+
+	}
+
+
+	/**
+	 * 对所有对象属性都分组,采用默认的优先级（创建于 2002.07.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	默认优先级即对象属性在类定义中的先后关系，越前面的优先级越高.
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.09.
+	</pre>
+	</DL>
+* @see #setGroupField(String)
+	@see #setGroupFields(String)
+*/
+	public void setGroupFields()
+	{	String ls_dbname;
+		for(int i=0;i<_Fields.length;i++)
+		{	ls_dbname = _Fields[i].getGroupCompute(_IsMultiple);
+			_GroupExpression = StringMethod.addChildString(_GroupExpression,
+																						ls_dbname,FIELDNAME_APART);
+		}
+	}
+	
+
+	/**
+	 * 设置指定的多个分组对象属性（创建于 2002.07.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	分组优先级与fieldNames中的次序相关，越前面的优先级越高.
+	fieldNames 为"*"时相当于执行setGroupFields()
+	fieldNames 为""时被忽略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.09.
+	</pre>
+	</DL>
+* @param fieldNames 分组对象属性名列表,对象属性名之间用','分隔,"*"代表所有的域.
+* @exception NoSuchFieldException 不存在的域.
+* @see #setGroupFields()
+* @see #setGroupField(String)
+	@see #setGroupFields(String[])
+*/
+	public void setGroupFields(String fieldNames)
+		throws NoSuchFieldException
+	{	if(fieldNames.equals("")) return;
+
+		if(fieldNames.equals("*"))
+			setGroupFields();
+		else
+		{	String [] ls_FieldName = StringMethod.toArray(fieldNames,FIELDNAME_APART);
+			setGroupFields(ls_FieldName);
+		}
+	}
+
+	
+/**
+* <img src="new.gif" width="28" height="11" border="0">设置指定的多个分组对象属性（创建于 2002.12.14）.
+<P><DL>
+<DT><B>说明：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>示例：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>日志：</B><DD>
+<pre>
+创建于 2002.12.14.
+</pre>
+</DL>
+* @param fieldNames 分组对象属性名列表,对象属性名之间用','分隔,"*"代表所有的域.
+* @exception NoSuchFieldException 不存在的域.
+* @see #setGroupFields()
+* @see #setGroupField(String)
+	@see #setGroupFields(String)
+*/
+	public void setGroupFields(String[] fieldNames)
+		throws NoSuchFieldException
+	{	for(int i=0;i<fieldNames.length;i++)
+			setGroupField(fieldNames[i]);
+	}
+	/**
+	 * 清除当前实例的分组对象属性（创建于 2002.07.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.09.
+	</pre>
+	</DL>
+* @see #setGroupField(String)
+	@see #setGroupFields()
+	@see #setGroupFields(String)
+*/
+	public void clearGroup()
+	{	_GroupExpression = "";
+	}
+	
+	/**对象属性对应的数据库表列名（创建于 2002.07.09）.*/
+	public static final int FIELD_DBNAME = 0;
+	/**对象属性对应的查询列表达式（创建于 2002.07.09）.*/
+	public static final int FIELD_COMPUTE = 1;
+	/**对象属性对应的排序列表达式（创建于 2002.07.09）.*/
+	public static final int FIELD_SORTCOMPUTE = 2;
+	/**对象属性对应的分组列表达式（创建于 2002.07.09）.*/
+	public static final int FIELD_GROUPCOMPUTE = 3;
+	/**对象属性对应的条件表达式（创建于 2002.07.09）.*/
+	public static final int FIELD_CNDEXPRESSION = 4;
+	/**对象属性对应的数据库表列名全称（创建于 2002.07.09）.*/
+	public static final int FIELD_FULLDBNAME = 5;
+
+	
+	/**
+	 * 设置指定对象属性的扩展属性（创建于 2002.07.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>	
+	&nbsp;&nbsp;&nbsp;&nbsp;在给属性FIELD_DBNAME设值时与setFieldDBName(String,String)不同,	前者
+	不会影响其它属性的变化.扩展属性参见:FIELD_XXX
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	//example的类对应于StreamExample表，name,reg_dt,money对应于该表的列	
+	example.name = "wyq1";
+	example.money = 1200;
+	example.reg_dt = null;
+	
+	//转换成SQLComment
+	SQLComment com = new SQLComment(example);
+	
+	//设置对象属性money的查询表达式
+	com.setFieldProperty("money",com.FIELD_COMPUTE,"sum(#)");
+	
+	//隐藏除money外的其它对象属性.
+	com.hideFields();
+	com.showField("money");
+	
+	//以下语句相当于执行
+	//SELECT sum(money) FROM StreamExample
+	//WHERE name="wyq1" AND reg_dt IS NULL AND money = 1200
+	ArrayList lArrylist = SQLCA.select(com);
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.09.
+	</pre>
+	</DL>
+	@param fieldName 对象属性名(注:不要与数据库表的列名混淆).
+	@param property 扩展属性。
+	@param value 扩展属性值.
+	@throws NoSuchFieldException 不存在的对象属性.
+	@see #getFieldProperty(String,int)
+
+*/
+	public void setFieldProperty(String fieldName,int property,String value)
+		throws NoSuchFieldException
+	{	int li_index = getFieldID(fieldName);
+		switch(property)
+		{	case FIELD_DBNAME:				
+				_Fields[li_index]._DBName = value;break;
+			case FIELD_SORTCOMPUTE:
+				_Fields[li_index]._SortCompute = value;break;
+			case FIELD_GROUPCOMPUTE:
+				_Fields[li_index]._GroupCompute = value;break;
+			case FIELD_CNDEXPRESSION:
+				_Fields[li_index]._CndExpression = value;break;
+			case FIELD_COMPUTE:
+				_Fields[li_index]._Compute = value;break;
+			default:throw new IllegalArgumentException("FieldProperty: " + property);
+		}		
+	}
+
+ /**
+	 * 取对象属性的扩展属性值（创建于 2002.07.09）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	扩展属性参见:FIELD_XXX
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.07.09.
+	</pre>
+	</DL>
+	@param fieldName 对象属性名(注:不要与数据库表的列名混淆).
+	@param property 扩展属性.
+	@return 扩展属性值.
+	@throws NoSuchFieldException 不存在的对象属性.
+	@see #setFieldProperty(String,int,String)
+*/
+	public String getFieldProperty(String fieldName,int property)
+		throws NoSuchFieldException
+	{	int li_index = getFieldID(fieldName);
+		switch(property)
+		{	case FIELD_DBNAME:				
+				return _Fields[li_index]._DBName;
+			case FIELD_SORTCOMPUTE:
+				return _Fields[li_index]._SortCompute;
+			case FIELD_GROUPCOMPUTE:
+				return _Fields[li_index]._GroupCompute;
+			case FIELD_CNDEXPRESSION:
+				return _Fields[li_index]._CndExpression;
+			case FIELD_COMPUTE:
+				return _Fields[li_index]._Compute;
+			case FIELD_FULLDBNAME:
+				return _Fields[li_index].getDBName(true);
+			default:throw new IllegalArgumentException("FieldProperty: " + property);
+		}				
+	}
+	
+/**
+	 * 设置附加条件表达式（创建于 2002.08.08）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	&nbsp;&nbsp;&nbsp;&nbsp;附加条件表达式直接采用SQL语义描述，并将出现在WHERE表达式的最前面，和其它条件
+	的关系采用默认关系。
+	
+	默认关系的设置和读取参见：
+	
+	setCndRelation(int)
+	getCndRelation()
+	
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	//example的类对应于StreamExample表，name,reg_dt,money对应于该表的列	
+	example.name = "wyq1";
+	example.money = 1200;
+	example.reg_dt = null;
+	
+	//转换成SQLComment
+	SQLComment com = new SQLComment(example);
+	
+	//重新设置name的判断条件
+	com.hideCndField("name");
+	com.appendCondition("name like 'w%'");
+	
+	//以下语句相当于执行
+	//SELECT name,money,reg_dt FROM StreamExample
+	//WHERE name like 'w%' AND reg_dt IS NULL AND money = 1200
+	ArrayList lArrylist = SQLCA.select(com);
+
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.08.
+	</pre>
+	</DL>
+* @param condition 附加条件表达式.
+*/
+	
+	public void appendCondition(String condition)
+	{ if(StringMethod.isValid(condition))
+		{ condition = "(" + condition + ")";
+			_AppendCondition = (StringMethod.isValid(_AppendCondition)?_AppendCondition + CNDRELATION_SYNTAX[_CndRelation] + condition :condition);
+		}
+	}
+
+	/**
+	 * <img src="new.gif" width="28" height="11" border="0">设置附加条件表达式（创建于 2002.11.26）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	附加条件表达式直接采用SQL语义描述，并将出现在WHERE表达式的最后面。
+	本方法不对附加条件的有效性进行验证。
+	多次使用本方法，只保留最后一次的设置。
+	附加条件与其它条件表达式之间采用当前默认关系。
+	
+	默认关系的设置和读取参见：
+	
+	setCndRelation(int)
+	getCndRelation()
+	
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	//example的类对应于StreamExample表，name,reg_dt,money对应于该表的列	
+	example.name = "wyq1";
+	example.money = 1200;
+	example.reg_dt = null;
+	
+	//转换成SQLComment
+	SQLComment com = new SQLComment(example);
+	
+	//重新设置name的判断条件
+	com.hideCndField("name");
+	com.setAppendCondition("name like 'w%'");
+	
+	//以下语句相当于执行
+	//SELECT name,money,reg_dt FROM StreamExample
+	//WHERE (reg_dt IS NULL AND money = 1200) AND name like 'w%' 
+	ArrayList lArrylist = SQLCA.select(com);
+
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.11.26.
+	</pre>
+	</DL>
+* @param condition 附加条件表达式.
+	@see #setAppendCondition(String,int)
+*/
+	
+	public void setAppendCondition(String condition)
+	{ setAppendCondition(condition,getCndRelation());
+	}
+		
+	
+/**
+* <img src="new.gif" width="28" height="11" border="0">设置附加条件表达式（创建于 2002.11.26）.
+<P><DL>
+<DT><B>说明：</B><DD>
+<pre>
+	附加条件表达式直接采用SQL语义描述，并将出现在WHERE表达式的最后面。	
+	本方法不对附加条件的有效性进行验证。
+	多次使用本方法，只保留最后一次的设置。
+</pre>
+<DT><B>示例：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>日志：</B><DD>
+<pre>
+创建于 2002.11.26.
+</pre>
+</DL>
+* @param condition 附加条件表达式.
+* @param cndRelation 附加条件与其它条件表达式之间采用默认关系.
+	@see #setAppendCondition(String)
+*/
+	public void setAppendCondition(String condition,int cndRelation)
+	{ _AppendCondition = condition;
+		_AppendConditionRelation = cndRelation;
+	}
+	/**附加条件域*/
+	private ArrayList _AppendCndFields = new ArrayList();
+	
+	/**当前支持的逻辑表达式操作符*/
+	private final static String[] _SupportedCndOP = {">",">=","<>","!=","=","<","<=","like","not like"};
+	
+	/**
+	 * 附加条件表达式（创建于 2002.08.23）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	条件表达式将以 fieldName op val 的形式出现。
+	如果val为null，且op不为"=","<>","!="，则附加条件表达式将被过滤，返回false，成功返回true。
+	目前op支持以下几种逻辑操作：
+	<>、!=、	>、	>=、	<、	<=、	=、	like、not like
+	其中like代表模糊匹配，如果值中不包含"%"，则自动在条件值前后加入"%"
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	//example的类对应于StreamExample表，name,reg_dt,money对应于该表的列	
+example.name = "wyq1";
+example.money = 1200;
+example.reg_dt = null;
+
+//转换成SQLComment
+SQLComment com = new SQLComment(example);
+
+//重新设置name的判断条件
+com.hideCndFields();
+com.appendCndField("name","like","wu");
+
+//以下语句相当于执行
+//SELECT name,money,reg_dt FROM StreamExample
+//WHERE name like '%wu%'
+ArrayList lArrylist = SQLCA.select(com);
+
+
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.23.
+	修改于 2002.12.19 - 允许当op为"=","<>","!="时，val可以为null.
+	</pre>
+	</DL>
+* @param fieldName 作为条件对象的属性名.
+* @param op 逻辑表达式的操作符.
+* @param val 逻辑表达式的值.
+* @return true代表附加成功，false代表附加失败.
+* @exception NoSuchFieldException 不存在的对象属性.
+* @exception UnsupportedOperationException 不支持的操作符.
+* @see #appendCndFieldExpression(String,Object,String)
+*/
+	
+	public boolean appendCndField(String fieldName,String op,Object val)
+		throws NoSuchFieldException
+	{	String ls_condition;
+	
+		if(ArrayMethod.findItemIgnoreCase(_SupportedCndOP,op) < 0)
+			throw new UnsupportedOperationException(op + " is unsupported in appendCndField(String,String,Object)!");
+				
+		if(val==null&&!(op.equals("=")||op.equals("!=")||op.equals("<>"))) return false;
+		
+		if(op.indexOf("like") >=0 && (val + "").indexOf("%") < 0)
+			ls_condition = FieldTag.COLUMN + " " + op + " '%" + FieldTag.SIMULATEDVALUE + "%'";
+		else
+			ls_condition = FieldTag.COLUMN + " " + op + " " + FieldTag.VALUE;
+		
+		appendCndFieldExpression(fieldName,val,ls_condition);
+		
+		return true;
+	}
+
+	/**
+	 * 附加条件表达式（创建于 2002.08.23）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.23.
+	</pre>
+	</DL>
+* @param fieldName 作为条件对象的属性名.
+* @param op 逻辑表达式的操作符.
+* @param val 逻辑表达式的值.
+* @return true代表附加成功，false代表附加失败.
+* @exception NoSuchFieldException 不存在的对象属性.
+* @exception UnsupportedOperationException 不支持的操作符.
+* @see #appendCndField(String,String,Object)
+*/
+	public boolean appendCndField(String fieldName,String op,long val)
+		throws NoSuchFieldException
+	{	return appendCndField(fieldName,op,new Long(val));
+	}
+	
+
+		/**
+	 * 附加条件表达式（创建于 2002.08.23）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.23.
+	</pre>
+	</DL>
+* @param fieldName 作为条件对象的属性名.
+* @param op 逻辑表达式的操作符.
+* @param val 逻辑表达式的值.
+* @return true代表附加成功，false代表附加失败.
+* @exception NoSuchFieldException 不存在的对象属性.
+* @exception UnsupportedOperationException 不支持的操作符.
+* @see #appendCndField(String,String,Object)
+*/
+	public boolean appendCndField(String fieldName,String op,double val)
+		throws NoSuchFieldException
+	{	return appendCndField(fieldName,op,new Double(val));
+	}
+		/**
+	 * 附加条件表达式（创建于 2002.08.23）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.23.
+	</pre>
+	</DL>
+* @param fieldName 作为条件对象的属性名.
+* @param op 逻辑表达式的操作符.
+* @param val 逻辑表达式的值.
+* @return true代表附加成功，false代表附加失败.
+* @exception NoSuchFieldException 不存在的对象属性.
+* @exception UnsupportedOperationException 不支持的操作符.
+* @see #appendCndField(String,String,Object)
+
+*/
+	public boolean appendCndField(String fieldName,String op,char val)
+		throws NoSuchFieldException
+	{	return appendCndField(fieldName,op,val + "");
+	}
+
+	/**
+	 * 附加条件表达式（创建于 2002.08.23）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.23.
+	</pre>
+	</DL>
+* @param fieldName 作为条件对象的属性名.
+* @param op 逻辑表达式的操作符.
+* @param val 逻辑表达式的值.
+* @return true代表附加成功，false代表附加失败.
+* @exception NoSuchFieldException 不存在的对象属性.
+* @exception UnsupportedOperationException 不支持的操作符.
+* @see #appendCndField(String,String,Object)
+
+*/
+	public boolean appendCndField(String fieldName,String op,boolean val)
+		throws NoSuchFieldException
+	{	return appendCndField(fieldName,op,new Boolean(val));
+	}
+
+	/**
+	 * 附加条件表达式（创建于 2002.08.23）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	cndExpression的定义方式参见setFieldCndExpression(String,String)
+	与其他条件表达式的关系为当前默认关系：getCndRelation()
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.23.
+	修改于 2002.08.28 - 增加当前默认关系属性.
+	</pre>
+	</DL>
+* @param fieldName 作为条件的对象属性名.
+* @param val 作为条件表达式中出现的值.
+* @param cndExpression 条件表达式.
+* @exception NoSuchFieldException 不存在的对象属性.
+* @see #appendCndField(String,String,Object)
+* @see #appendCndFieldExpression(String,Object,String,int)
+*/
+	public void appendCndFieldExpression(String fieldName,Object val,String cndExpression)
+		throws NoSuchFieldException
+	{	appendCndFieldExpression(fieldName,val,cndExpression,getCndRelation());
+	}
+	
+
+	/**
+	 * 附加条件表达式（创建于 2002.08.28）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	cndExpression的定义方式参见setFieldCndExpression(String,String)
+	cndRelation：CNDRELATION_AND 或者 CNDRELATION_OR
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.28.
+	</pre>
+	</DL>
+* @param fieldName 作为条件的对象属性名.
+* @param val 作为条件表达式中出现的值.
+* @param cndExpression 条件表达式.
+* @param cndRelation 与已有条件之间的关系符.
+* @exception NoSuchFieldException 不存在的对象属性.
+* @see #appendCndFieldExpression(String,Object,String)
+* @see #appendCndFieldExpression(String,List,String,int)
+*/
+	public void appendCndFieldExpression(String fieldName,Object val,String cndExpression,int cndRelation)
+		throws NoSuchFieldException
+	{	int li_index = getFieldID(fieldName);
+		String ls_condition;
+
+		if(!isSupportedCndRelation(cndRelation))
+			throw new IllegalArgumentException(cndRelation + " is not supported cndRelation!");
+
+		if(val!=null && !_Fields[li_index]._ClassType.equals(val.getClass()))
+			throw new ClassCastException("val's class is mismatched");
+			
+		try
+		{	FieldTag lField = (FieldTag)MyMethod.deepClone(_Fields[li_index]);
+			lField._Value = val;
+			lField._IsArray = false;
+			lField._CndExpression = cndExpression;	
+			lField._IsHidden = false;
+			lField._IsCndHidden = false;
+			lField._CndRelation = cndRelation;
+			_AppendCndFields.add(lField);
+		}
+		catch(ClassNotFoundException e)
+		{	System.out.println("error in appendCndFieldExpression");
+		}			
+	}
+	
+	/**附加条件对象列表*/
+	private ArrayList _AppendCndSQLComments = new ArrayList();
+	
+	/**作为附加条件对象时的关系符*/
+	private int _AppendCndRelation = CNDRELATION_AND;
+	
+
+	
+/**
+* <img src="new.gif" width="28" height="11" border="0">附加条件对象（创建于 2002.11.26）.
+<P><DL>
+<DT><B>说明：</B><DD>
+<pre>
+条件对象指作为附加条件的SQLComment
+在SQLComment创建条件时，按以下顺序进行:
+((((原始条件域)附加条件域)附加条件表达式)附加条件对象...)
+</pre>
+<DT><B>示例：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>日志：</B><DD>
+<pre>
+创建于 2002.11.26.
+</pre>
+</DL>
+* @param com 条件对象.
+* @param cndRelation 条件对象与原始对象之间的关系符.
+*/
+	public void appendCndSQLComment(SQLComment com,int cndRelation)
+	{	if(!com._ClassType.equals(_ClassType)) 
+		{ throw new IllegalArgumentException("ClassType is dismatched!");
+			//_IsMultiple = true;
+		}
+			
+		com._AppendCndRelation = cndRelation;
+		
+		_AppendCndSQLComments.add(com);
+	}
+		/**
+	 * 附加条件表达式（创建于 2002.08.28）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	cndExpression的定义方式参见setFieldCndExpression(String,String)
+	与其他条件表达式的关系为当前默认关系：getCndRelation()
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.28.
+	</pre>
+	</DL>
+* @param fieldName 作为条件的对象属性名.
+* @param val 作为条件表达式中出现的值数组.
+* @param cndExpression 条件表达式.
+* @exception NoSuchFieldException 不存在的对象属性.
+* @see #appendCndFieldExpression(String,Object,String,int)
+*/
+	public void appendCndFieldExpression(String fieldName,List val,String cndExpression)
+		throws NoSuchFieldException
+	{	appendCndFieldExpression(fieldName,val,cndExpression,getCndRelation());
+	}
+	/**
+	 * 附加条件表达式（创建于 2002.08.28）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	cndExpression的定义方式参见setFieldCndExpression(String,String)
+	cndRelation：CNDRELATION_AND 或者 CNDRELATION_OR
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.28.
+	</pre>
+	</DL>
+* @param fieldName 作为条件的对象属性名.
+* @param val 作为条件表达式中出现的值数组.
+* @param cndExpression 条件表达式.
+* @param cndRelation 与已有条件之间的关系符.
+* @exception NoSuchFieldException 不存在的对象属性.
+* @see #appendCndFieldExpression(String,Object,String,int)
+*/
+	public void appendCndFieldExpression(String fieldName,List val,String cndExpression,int cndRelation)
+		throws NoSuchFieldException
+	{	int li_index = getFieldID(fieldName);
+		String ls_condition;
+	
+		if(!isSupportedCndRelation(cndRelation))
+			throw new IllegalArgumentException(cndRelation + " is not supported cndRelation!");
+	
+		for(int i=0;i<val.size();i++)
+			if(!_Fields[li_index]._ClassType.equals((val.get(i)).getClass()))
+				throw new ClassCastException("element[" + i + "]'s class is mismatch");				
+
+		try
+		{	FieldTag lField = (FieldTag)MyMethod.deepClone(_Fields[li_index]);
+			lField._Value = val;
+			lField._IsArray = true;
+			lField._CndExpression = cndExpression;	
+			lField._IsHidden = false;
+			lField._IsCndHidden = false;
+			lField._CndRelation = cndRelation;
+			_AppendCndFields.add(lField);
+		}
+		catch(ClassNotFoundException e)
+		{	System.out.println("error in appendCndFieldExpression");
+		}			
+	}
+	/**
+	 * 当前实例是否为复合类型（创建于 2002.08.07）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	&nbsp;&nbsp;&nbsp;&nbsp;它与普通SQLComment最大的区别在于对象属性名的格式不同。普通类型的对象属性
+	名为<field>，而在复合类型中，格式为<Class>_<field>，复合类型的SQLComment主
+	要用于多表查询。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.07.
+	</pre>
+	</DL>
+* @return true代表是复合类型，反之为false.
+*/
+	public boolean isMultiple()
+	{	return _IsMultiple;
+	}
+	
+
+	/**
+	 * <img src="new.gif" width="28" height="11" border="0">创建一个复合类型的SQLComment（创建于 2002.08.07）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	返回值中的SQLComment只继承参数SQLComment的条件信息，排序、分组等信息不继承.
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	//FBI_USER包含 U_ID,U_NAME,U_SEX等属性
+	FBI_USER user = new FBI_USER();
+	user.U_ID = "wyq";
+	
+	//FBI_QUESTION包含 U_ID,Q_ID,Q_TITLE等属性
+	FBI_QUESTION question = new FBI_QUESTION();
+		
+	SQLComment com1 = new SQLComment(user);
+	SQLComment com2 = new SQLComment(question);
+	
+	//只采用user.U_ID作为条件
+	com1.hideCndFields();
+	com1.showCndFields("U_ID");
+	com2.hideCndFields();
+	
+	//生成复合对象，指定复合连接的条件
+	SQLComment com3 = SQLComment.join(com1,com2,"U_ID","U_ID");
+	
+	//以下相当于执行：
+	//SELECT FBI_USER.U_ID,FBI_USER.U_NAME,FBI_USER.U_SEX,
+	//       FBI_QUESTION.U_ID,FBI_QUESTION.Q_ID,FBI_QUESTION.Q_TITLE
+	//       FROM FBI_USER,FBI_QUESTION 
+	//WHERE (FBI_USER.U_ID = FBI_QUESTION.U_ID) AND FBI_USER.U_ID = 'wyq'
+	ResultSet lRst = sqlca.query(com3);
+	
+	//分别从结果集获取数据
+	ArrayList lAL_user = ResultSetMethod.toArrayList(lRst,FBI_USER.class,true);
+	ArrayList lAL_question = ResultSetMethod.toArrayList(lRst,FBI_QUESTION.class,true);
+		
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.07.
+	</pre>
+	</DL>
+* @param com1 组成部分1.
+* @param com2 组成部分2.
+* @param fieldNames1 组成部分1中用于关联的域.
+* @param fieldNames2 组成部分2中用于关联的域.
+* @return 复合类型的SQLComment.
+* @exception NoSuchFieldException 找不到的对象属性名.
+	@see triones.util.ResultSetMethod#toArrayList(ResultSet,Class,boolean)
+*/
+	public static SQLComment join(SQLComment com1,SQLComment com2,String fieldNames1,String fieldNames2)
+		throws NoSuchFieldException
+	{	
+		return join(com1,com2,fieldNames1,fieldNames2," = ");
+	}
+	
+	/**
+	 * <img src="new.gif" width="28" height="11" border="0">创建一个复合类型的SQLComment（创建于 2002.08.07）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	本方法可以指定关联字段之间的关联方式，如" = "," > "," < "," >= "," <= "等。
+	
+	值得注意的是，对于左右关联目前各个数据库有的提供，有的没有提供，因此无法统一：
+	
+	在ORACLE中，分别为" (+)= "和" =(+) ".
+	特别需要指出的是：com1和com2中原有的排序、分组等信息将不对新产生的SQLComment有效.
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略	
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.07.
+	</pre>
+	</DL>
+* @param com1 组成部分1.
+* @param com2 组成部分2.
+* @param fieldNames1 组成部分1中用于关联的域.
+* @param fieldNames2 组成部分2中用于关联的域.
+	@param op	关联操作符.
+* @return 复合类型的SQLComment.
+* @exception NoSuchFieldException 找不到的对象属性名.
+	@see triones.util.ResultSetMethod#toArrayList(ResultSet,Class,boolean)
+*/
+private static SQLComment join(SQLComment com1,SQLComment com2,String fieldNames1,String fieldNames2,String op)
+		throws NoSuchFieldException
+	{	String [] ls_FieldNames1 = StringMethod.toArray(fieldNames1,FIELDNAME_APART);
+		String [] ls_FieldNames2 = StringMethod.toArray(fieldNames2,FIELDNAME_APART);
+	
+		if(ls_FieldNames1.length != ls_FieldNames2.length)
+			throw new IllegalArgumentException("对应域的个数不匹配:" + fieldNames1 + " -> " + fieldNames2);
+			
+		SQLComment com = new SQLComment();
+	
+		com._Fields = new FieldTag[com1._Fields.length + com2._Fields.length];
+		
+		ArrayMethod.toArrayList(ArrayMethod.merge(com1._Fields,com2._Fields)).toArray(com._Fields);
+		
+		com._IsMultiple = true;
+		com._MultiClassType = new ArrayList();
+		com._MultiClassType.addAll(com1._MultiClassType);
+		com._MultiClassType.addAll(com2._MultiClassType);
+		com._DBName = com1._DBName + "," + com2._DBName;
+		/*
+		com.setAppendCondition(com1._AppendCondition);
+		com.setAppendCondition(com2._AppendCondition);
+		*/	
+		//相关列之间的条件限制
+		String ls_condition = "";
+		
+		for(int i=0;i<ls_FieldNames1.length;i++)
+		{	if(StringMethod.isValid(ls_condition))
+				ls_condition += CNDRELATION_SYNTAX[CNDRELATION_AND];
+				
+			ls_condition += com1.getFieldProperty(ls_FieldNames1[i],FIELD_FULLDBNAME) + op + com2.getFieldProperty(ls_FieldNames2[i],FIELD_FULLDBNAME);			
+		}
+		
+		com.setAppendCondition(ls_condition,CNDRELATION_AND);
+		//com.hideCndFields();
+		
+		//将条件合并
+		com.appendCndSQLComment(com1,CNDRELATION_AND);
+		com.appendCndSQLComment(com2,CNDRELATION_AND);
+		
+		return com;
+	}
+	
+
+	/**
+	 * 取复合元素类型清单（创建于 2002.08.23）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.23.
+	</pre>
+	</DL>
+* @return 复合元素类型清单.
+*/
+	public Class[] getMultiClassType()
+	{	Class[] lClass = new Class[_MultiClassType.size()];
+	
+		_MultiClassType.toArray(lClass);
+		
+		return lClass;
+	}
+	
+
+	/**
+	 * 附加范围查询的条件对象属性（创建于 2002.08.28）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	采用本方法可以实现 BETWEEN ... AND ...
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+		//以下程序相当于执行
+		//SELECT U_ID,U_NAME,U_PSWD,U_EMAIL 
+		//FROM FBI_USER 
+		//WHERE (U_NAME BETWEEN 'ABC' AND 'EFG')
+		
+		FBI_USER user = new FBI_USER();
+		SQLComment com = new SQLComment(user);
+		com.hideCndFields();
+		com.appendCndFieldBetween("U_NAME","ABC","EFG");
+		Hashtable rs = sqlca.multiSelect(com,1,10);
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.28.
+	</pre>
+	</DL>
+* @param fieldName 作为条件对象的属性名.
+* @param beginVal 范围开始值.
+* @param endVal 范围结束值.
+* @exception NoSuchFieldException 不存在的对象属性.
+	@see #appendCndFieldBetween(String,Object,Object,boolean,int)
+	@see #appendCndFieldBetween(String fieldName,long beginVal,long endVal)
+	@see #appendCndFieldBetween(String fieldName,double beginVal,double endVal)
+	@see #appendCndFieldBetween(String fieldName,char beginVal,char endVal)
+*/
+	public void appendCndFieldBetween(String fieldName,Object beginVal,Object endVal)
+		throws NoSuchFieldException
+	{	appendCndFieldBetween(fieldName,beginVal,endVal,false);		
+	}
+	
+	/**
+	 * 附加范围查询的条件对象属性（创建于 2002.08.28）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	采用本方法可以实现 BETWEEN ... AND ...
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.28.
+	</pre>
+	</DL>
+* @param fieldName 作为条件对象的属性名.
+* @param beginVal 范围开始值.
+* @param endVal 范围结束值.
+* @exception NoSuchFieldException 不存在的对象属性.
+	@see #appendCndFieldBetween(String,Object,Object)
+*/
+	public void appendCndFieldBetween(String fieldName,long beginVal,long endVal)
+		throws NoSuchFieldException
+	{	appendCndFieldBetween(fieldName,new Long(beginVal),new Long(endVal));		
+	}
+	
+		/**
+	 * 附加范围查询的条件对象属性（创建于 2002.08.28）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	采用本方法可以实现 BETWEEN ... AND ...
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.28.
+	</pre>
+	</DL>
+* @param fieldName 作为条件对象的属性名.
+* @param beginVal 范围开始值.
+* @param endVal 范围结束值.
+* @exception NoSuchFieldException 不存在的对象属性.
+	@see #appendCndFieldBetween(String,Object,Object)
+*/
+	public void appendCndFieldBetween(String fieldName,double beginVal,double endVal)
+		throws NoSuchFieldException
+	{	appendCndFieldBetween(fieldName,new Double(beginVal),new Double(endVal));		
+	}
+		/**
+	 * 附加范围查询的条件对象属性（创建于 2002.08.28）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	采用本方法可以实现 BETWEEN ... AND ...
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.28.
+	</pre>
+	</DL>
+* @param fieldName 作为条件对象的属性名.
+* @param beginVal 范围开始值.
+* @param endVal 范围结束值.
+* @exception NoSuchFieldException 不存在的对象属性.
+	@see #appendCndFieldBetween(String,Object,Object)
+*/
+	public void appendCndFieldBetween(String fieldName,char beginVal,char endVal)
+		throws NoSuchFieldException
+	{	appendCndFieldBetween(fieldName,new Character(beginVal),new Character(endVal));		
+	}
+		/**
+	 * 附加范围查询的条件对象属性（创建于 2002.08.28）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	采用本方法可以实现 BETWEEN ... AND ...
+	参数 cndRelation：CNDRELATION_AND 或者 CNDRELATION_OR
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.28.
+	</pre>
+	</DL>
+* @param fieldName 作为条件对象的属性名.
+* @param beginVal 范围开始值.
+* @param endVal 范围结束值.
+	@param cndRelation 与先前设定的条件表达式之间的关系符.
+* @exception NoSuchFieldException 不存在的对象属性.
+	@see #appendCndFieldBetween(String,Object,Object,boolean,int)
+*/
+	public void appendCndFieldBetween(String fieldName,Object beginVal,Object endVal,int cndRelation)
+		throws NoSuchFieldException
+	{	appendCndFieldBetween(fieldName,beginVal,endVal,false,cndRelation);
+	}
+		/**
+	 * 附加范围查询的条件对象属性（创建于 2002.08.28）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	采用本方法可以实现 [NOT] BETWEEN ... AND ...
+	参数 not：true代表采用否定语义，false代表不采用否定语义
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.28.
+	</pre>
+	</DL>
+* @param fieldName 作为条件对象的属性名.
+* @param beginVal 范围开始值.
+* @param endVal 范围结束值.
+	@param not 是否采用否定语义.
+* @exception NoSuchFieldException 不存在的对象属性.
+	@see #appendCndFieldBetween(String,Object,Object,boolean,int)
+*/
+	public void appendCndFieldBetween(String fieldName,Object beginVal,Object endVal,boolean not)
+		throws NoSuchFieldException
+	{	appendCndFieldBetween(fieldName,beginVal,endVal,not,getCndRelation());
+	}
+	/**
+	 * 附加范围查询的条件对象属性（创建于 2002.08.28）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	采用本方法可以实现 [NOT] BETWEEN ... AND ...
+	参数 not：true代表采用否定语义，false（默认值）代表不采用否定语义
+	参数 cndRelation：CNDRELATION_AND 或者 CNDRELATION_OR，默认值为getCndRelation()
+	
+	appendCndFieldBetween(fieldName,beginVal,endVal[,not][,cndRelation])
+	
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.28.
+	</pre>
+	</DL>
+* @param fieldName 作为条件对象的属性名.
+* @param beginVal 范围开始值.
+* @param endVal 范围结束值.
+	@param not 是否采用否定语义.
+	@param cndRelation 与先前设定的条件表达式之间的关系符.
+* @exception NoSuchFieldException 不存在的对象属性.
+	@see #appendCndFieldBetween(String,Object,Object)
+	@see #appendCndFieldBetween(String,Object,Object,int)
+	@see #appendCndFieldBetween(String,Object,Object,boolean)
+*/
+	public void appendCndFieldBetween(String fieldName,Object beginVal,Object endVal,boolean not,int cndRelation)
+		throws NoSuchFieldException
+	{	ArrayList lArray = new ArrayList();
+		lArray.add(beginVal);
+		lArray.add(endVal);
+		
+		String ls_condition = "(" + FieldTag.COLUMN + (not?" NOT ":" ") + "BETWEEN " + FieldTag.VALUE + " AND " + FieldTag.VALUE + ")";
+		
+		appendCndFieldExpression(fieldName,lArray,ls_condition,cndRelation);
+		
+	}
+
+
+/**
+ * <img src="new2.gif" width="35" height="15" border="0">附加枚举查询的条件对象属性（创建于 2002.08.28）.
+<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	采用本方法可以实现 [NOT] IN (element1,element2,...)
+	参数 not：true代表采用否定语义，false（默认值）代表不采用否定语义
+	参数 cndRelation：CNDRELATION_AND 或者 CNDRELATION_OR，默认值为getCndRelation()
+
+	
+	appendCndFieldIn(fieldName,val[,not][,cndRelation])
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.28.
+	</pre>
+	</DL>
+* @param fieldName 作为条件对象的属性名.
+* @param val 枚举值数组.
+	@param not 是否采用否定语义.
+	@param cndRelation 与先前设定的条件表达式之间的关系符.
+* @exception NoSuchFieldException 不存在的对象属性.
+	@see #appendCndFieldIn(String,SQLComment,boolean,int)
+	@see #appendCndFieldIn(String,List,boolean)
+	@see #appendCndFieldIn(String,List,int)
+	@see #appendCndFieldIn(String,List)
+*/
+
+	public void appendCndFieldIn(String fieldName,List val,boolean not,int cndRelation)
+		throws NoSuchFieldException
+	{	String ls_enum = "";
+		
+		for(int i=0;i<val.size();i++)
+			ls_enum = StringMethod.addChildString(ls_enum,FieldTag.VALUE,',');
+		
+		String ls_condition = "(" + FieldTag.COLUMN + (not?" NOT ":" ") + "IN (" + ls_enum + "))";
+		
+		appendCndFieldExpression(fieldName,val,ls_condition,cndRelation);
+	}
+
+/**
+ * <img src="new2.gif" width="35" height="15" border="0">附加枚举查询的条件对象属性（创建于 2002.08.28）.
+<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.28.
+	</pre>
+	</DL>
+* @param fieldName 作为条件对象的属性名.
+* @param val 枚举值数组.
+	@param cndRelation 与先前设定的条件表达式之间的关系符.
+* @exception NoSuchFieldException 不存在的对象属性.
+	@see #appendCndFieldIn(String,List,boolean,int)
+*/
+	public void appendCndFieldIn(String fieldName,List val,int cndRelation)
+		throws NoSuchFieldException
+	{	appendCndFieldIn(fieldName,val,false,cndRelation);
+	}
+	/**
+ * <img src="new2.gif" width="35" height="15" border="0">附加枚举查询的条件对象属性（创建于 2002.08.28）.
+<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.28.
+	</pre>
+	</DL>
+* @param fieldName 作为条件对象的属性名.
+* @param val 枚举值数组.
+	@param not 是否采用否定语义.
+* @exception NoSuchFieldException 不存在的对象属性.
+	@see #appendCndFieldIn(String,List,boolean,int)
+*/
+	public void appendCndFieldIn(String fieldName,List val,boolean not)
+		throws NoSuchFieldException
+	{	appendCndFieldIn(fieldName,val,not,getCndRelation());
+	}
+/**
+ * <img src="new2.gif" width="35" height="15" border="0">附加枚举查询的条件对象属性（创建于 2002.08.28）.
+<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.28.
+	</pre>
+	</DL>
+* @param fieldName 作为条件对象的属性名.
+* @param val 枚举值数组.
+* @exception NoSuchFieldException 不存在的对象属性.
+	@see #appendCndFieldIn(String,List,boolean,int)
+*/
+	public void appendCndFieldIn(String fieldName,List val)
+		throws NoSuchFieldException
+	{	appendCndFieldIn(fieldName,val,false);
+	}
+
+
+/**
+ * 附加以子查询为枚举值的条件对象属性（创建于 2002.08.28）.
+<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	采用本方法可以实现 [NOT] IN (SELECT ...)
+	
+	参数 not：true代表采用否定语义，false（默认值）代表不采用否定语义
+	参数 cndRelation：CNDRELATION_AND 或者 CNDRELATION_OR，默认值为getCndRelation()
+	
+	appendCndFieldIn(fieldName,subCom[,not][,cndRelation])
+	
+	要求：必须保证subCom中只有一个对象属性可用，且该对象属性将与fieldName相关。
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.28.
+	修改于 2002.09.05 - IN的前面保留一个空格.
+	</pre>
+	</DL>
+* @param fieldName 作为条件对象的属性名.
+* @param subCom 子查询SQL语义对象.
+	@param not 是否采用否定语义.
+	@param cndRelation 与先前设定的条件表达式之间的关系符.
+* @exception NoSuchFieldException 不存在的对象属性.
+	@see #appendCndFieldIn(String,List,boolean,int)
+	@see #appendCndFieldIn(String,SQLComment,boolean)
+	@see #appendCndFieldIn(String,SQLComment,int)
+	@see #appendCndFieldIn(String,SQLComment)
+*/
+	public void appendCndFieldIn(String fieldName,SQLComment subCom,boolean not,int cndRelation)
+		throws NoSuchFieldException
+	{	subCom.prepareSQL(SQL_SELECT);
+		String ls_preparedSQL = subCom.getPreparedSQL(SQL_SELECT);
+		List larray = subCom.prepareSQL(SQL_CONDITION);
+		ls_preparedSQL += subCom.getPreparedSQL(SQL_CONDITION);		
+		
+		String ls_condition = "(" + FieldTag.COLUMN + (not?" NOT ":" ") + "IN (" + ls_preparedSQL + "))";
+		
+		appendCndFieldExpression(fieldName,larray,ls_condition,cndRelation);
+	}
+	
+/**
+ * 附加以子查询为枚举值的条件对象属性（创建于 2002.08.28）.
+<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.28.
+	</pre>
+	</DL>
+* @param fieldName 作为条件对象的属性名.
+* @param subCom 子查询SQL语义对象.
+	@param cndRelation 与先前设定的条件表达式之间的关系符.
+* @exception NoSuchFieldException 不存在的对象属性.
+	@see #appendCndFieldIn(String,SQLComment,boolean,int)
+*/
+	public void appendCndFieldIn(String fieldName,SQLComment subCom,int cndRelation)
+		throws NoSuchFieldException
+	{	appendCndFieldIn(fieldName,subCom,false,cndRelation);
+	}
+/**
+ * 附加以子查询为枚举值的条件对象属性（创建于 2002.08.28）.
+<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.28.
+	</pre>
+	</DL>
+* @param fieldName 作为条件对象的属性名.
+* @param subCom 子查询SQL语义对象.
+	@param not 是否采用否定语义.
+* @exception NoSuchFieldException 不存在的对象属性.
+	@see #appendCndFieldIn(String,SQLComment,boolean,int)
+*/	
+	public void appendCndFieldIn(String fieldName,SQLComment subCom,boolean not)
+		throws NoSuchFieldException
+	{	appendCndFieldIn(fieldName,subCom,not,getCndRelation());
+	}
+/**
+ * 附加以子查询为枚举值的条件对象属性（创建于 2002.08.28）.
+<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.08.28.
+	</pre>
+	</DL>
+* @param fieldName 作为条件对象的属性名.
+* @param subCom 子查询SQL语义对象.
+* @exception NoSuchFieldException 不存在的对象属性.
+	@see #appendCndFieldIn(String,SQLComment,boolean,int)
+*/
+	public void appendCndFieldIn(String fieldName,SQLComment subCom)
+		throws NoSuchFieldException
+	{	appendCndFieldIn(fieldName,subCom,false);
+	}
+	
+
+	/**
+	 * 取当前Group计算式的清单（创建于 2002.09.10）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2002.09.10.
+	</pre>
+	</DL>
+* @return 当前Group计算式数组.
+*/
+	public String[] listGroupComputes()
+	{	return StringMethod.toArray(_GroupExpression,FIELDNAME_APART);
+	}
+
+	
+				/**********计划开发的**********************/
+/*
+	void appendCndFieldExists(String fieldName,SQLComment child,String childFieldName)
+	{
+	}
+	*/
+}
+

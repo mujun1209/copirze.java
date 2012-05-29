@@ -1,0 +1,67 @@
+package triones.util;
+
+
+/**
+* 8种基本数据类型函数库（创建于 2002.09.26）.
+<DL>
+<DT><B>对象概述：</B><DD>
+<pre>
+主要收集与JAVA基本变量类型有关的公共函数。
+</pre>
+<DT><B>使用说明：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>名词解释：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>注意事项：</B><DD>
+<pre>
+基于JDK1.3
+</pre>
+<DT><B>展望未来：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>联系方式：</B><DD>
+<pre>
+ email：wyq@wondersgroup.com 
+ 电  话:021-64950118-2346
+</pre>
+</DL>
+* @author	吴勇庆
+* @version 2002.09.26
+	@deprecated 命名与包内的其它类不统一，被DataTypeMethod代替.
+*/
+
+public class DataType
+{	
+	public static String toObject(char val)	
+	{	return val + "";
+	}
+	public static Boolean toObject(boolean val)
+	{	return new Boolean(val);
+	}
+	public static Integer toObject(int val)
+	{	return new Integer(val);
+	}
+	public static Short toObject(short val)
+	{	return new Short(val);
+	}
+	public static Long toObject(long val)
+	{	return new Long(val);
+	}
+	public static Byte toObject(byte val)
+	{	return new Byte(val);
+	}
+	public static Double toObject(double val)
+	{	return new Double(val);
+	}
+	public static Float toObject(float val)
+	{	return new Float(val);
+	}
+
+
+}
+

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="GB2312"?>
+<project name="publishCvs" default="final" basedir=".">
+<description>与CVS配套使用的版本发布程序（作者：吴勇庆）</description>
+
+<!-- =========================参数定义========================= -->
+
+<!--
+<property name="PROJECT_NAME" value="WSTCC"/>
+<property file="./env.properties"/>
+-->
+
+<!-- =========================默认设置========================= -->
+
+<!--
+<tstamp>
+	<format property="date" pattern="yyyy-MM-dd"/>
+	<format property="now" pattern="yyyy-MM-dd kk:mm:ss"/>
+</tstamp>
+<property name="APP_HOME" value=".."/>
+<property name="BACKUP_HOME" value="${APP_HOME}/bak"/>
+<property name="DOC_HOME" value="${APP_HOME}/doc"/>
+<property name="JAR_HOME" value="${APP_HOME}/jar"/>
+<property name="PUBLISH_HOME" value="${APP_HOME}/publish"/>
+<property name="RELEASE_HOME" value="${APP_HOME}/release"/>
+<property name="SRC_HOME" value="${RELEASE_HOME}/src"/>
+<property name="JSP_HOME" value="${RELEASE_HOME}/JSP" />
+<property name="INF_HOME" value="${JSP_HOME}/WEB-INF" />
+<property name="CLASSES_HOME" value="${INF_HOME}/classes"/>
+<property name="LIB_HOME" value="${INF_HOME}/lib"/>
+<property name="ARCHIVE_FILE" value="${INF_HOME}/web.xml" />
+<property name="PROJECT_BKUP" value="${PROJECT_NAME}(${date})" />
+-->
+
+<!-- =========================初始任务========================= -->
+<target name="init">
+
+<echo>执行publishCvs.xml=================</echo>
+
+</target>
+
+<!-- =========================核心任务========================= -->
+<target name="main" depends="init">
+
+<echo>01.执行构造程序=======================</echo>
+<ant antfile="build.xml" output="build.log" />
+
+</target>
+
+<!-- =========================后续任务========================= -->
+<target name="final" depends="main">
+
+<echo>完成publishCvs.xml=================</echo>
+
+</target>
+<!-- =========================工程结尾========================= -->
+</project>

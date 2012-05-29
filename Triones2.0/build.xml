@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<project name="build" default="final" basedir=".">
+<description>编译、打包、备份（作者：吴勇庆）</description>
+<!-- =========================默认设置========================= -->
+<tstamp>
+	<format property="date" pattern="yyyy-MM-dd"/>
+	<format property="now" pattern="yyyy-MM-dd kk:mm:ss"/>
+</tstamp>
+<property name="PROJECT_NAME" value="coprize"/>
+<property name="APP_HOME" value="."/>
+<property name="BACKUP_HOME" value="${APP_HOME}/bak"/>
+<property name="DOC_HOME" value="${APP_HOME}/doc"/>
+<property name="PUB_HOME" value="${APP_HOME}/pub"/>
+<property name="VER_HOME" value="${APP_HOME}/ver"/>
+<property name="SRC_HOME" value="${APP_HOME}/src"/>
+<property name="LIB_HOME" value="${APP_HOME}/lib"/>
+<property name="OUT_HOME" value="${APP_HOME}/out"/>
+<property name="PUBLISH_NAME" value="coprize" />
+<property name="PUB_BKUP" value="${PUBLISH_NAME}(${date})" />
+<property name="SRC_BKUP" value="【ST-SD(${PROJECT_NAME}-${date})】${PUBLISH_NAME}" />
+
+<!-- =========================初始任务========================= -->
+<target name="init">
+
+<echo>执行Build.xml:${now}=================</echo>
+
+</target>
+
+<!-- =========================核心任务========================= -->
+<target name="main" depends="init">
+
+<echo>01.清除历史痕迹=======================</echo>
+<mkdir dir="${OUT_HOME}"/>
+<delete includeEmptyDirs="true">
+	<fileset dir="${DOC_HOME}" includes="**/*" />
+	<fileset dir="${OUT_HOME}" includes="**/*.class" />
+</delete>
+
+<echo>02.编译源代码包=======================</echo>
+<javac srcdir="${SRC_HOME}" destdir="${OUT_HOME}" >
+	<compilerarg line="-encoding UTF-8 "/> 
+	<classpath>
+		<fileset dir="${LIB_HOME}" >
+			<include name="**/*.jar"/>
+			<include name="**/*.zip"/>
+		</fileset>
+		<fileset dir="${OUT_HOME}" >
+			<include name="**/*.jar"/>
+			<include name="**/*.zip"/>
+		</fileset>
+		<pathelement location="${CLASSES_HOME}"/>
+	</classpath>
+</javac>
+
+<echo>03.复制配置文件=======================</echo>
+<copy todir="${OUT_HOME}" overwrite="true">
+	<fileset dir="${SRC_HOME}">
+		<include name="**/*"/>
+		<exclude name="**/*.java"/>
+	</fileset>
+</copy>
+
+<echo>04.导入外部类包=======================</echo>
+<unzip  dest="${OUT_HOME}" overwrite="yes">
+		<fileset dir="${LIB_HOME}">
+			<include name="**/*.jar"/>
+			<include name="**/*.zip"/>
+		</fileset>
+</unzip>
+
+<!--
+<echo>05.预处理和验证=======================</echo>
+<exec executable="${PREVERIFY_CMD}">
+	<arg line="-classpath ${JAR_HOME}/${PREVERIFY_JAR}" />
+	<arg line="-d ${OUT_HOME}"/>
+	<arg line="${CLASSES_HOME}"/>
+</exec>   
+-->
+<echo>06.创建可发布包=======================</echo>
+<zip destfile="${PUB_HOME}/${PUB_BKUP}.jar" >
+	<zipfileset dir="${OUT_HOME}" />
+</zip>
+
+<echo>07.创建帮助文档${now}=======================</echo>
+<javadoc packagenames="*" destdir="${DOC_HOME}" sourcepath="${SRC_HOME}" author="true" version="true" use="true" splitindex="true" windowtitle="${PROJECT_NAME} API Documentation" maxmemory="128m" encoding="UTF-8" docencoding="UTF-8">
+<doctitle><![CDATA[ <h1>${PROJECT_NAME} APIs </h1> ]]></doctitle>
+<bottom><![CDATA[ <div algin="center">Copyright &#169; 2005-2006 All Rights Reserved.</div>]]></bottom>
+</javadoc>
+
+<!--
+<echo>08.发布工作成果${now}=======================</echo>
+<copy file="${PUB_HOME}/${PUB_BKUP}.jar" tofile="${APP_HOME}/${PUBLISH_NAME}.jar" preservelastmodified="true" overwrite="true" />
+-->
+<echo>09.备份原始记录=======================</echo>
+<zip destfile="${BACKUP_HOME}/${SRC_BKUP}.zip" >
+	<zipfileset dir="${SRC_HOME}" prefix="src"/>
+	<zipfileset dir="${LIB_HOME}" prefix="lib"/>
+	<zipfileset dir="${OUT_HOME}" prefix="out"/>
+	<zipfileset dir="${DOC_HOME}" prefix="doc"/>
+	<zipfileset dir="${PUB_HOME}" prefix="pub"/>
+</zip>
+<zip destfile="${VER_HOME}/${SRC_BKUP}.zip" >
+	<zipfileset dir="${SRC_HOME}" prefix="src"/>
+</zip>
+</target>
+
+<!-- =========================后续任务========================= -->
+<target name="final" depends="main">
+
+<echo>完成Build.xml:${now}=================</echo>
+
+</target>
+<!-- =========================工程结尾========================= -->
+</project>

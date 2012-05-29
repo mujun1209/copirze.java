@@ -1,0 +1,262 @@
+package triones.sql;
+
+import java.lang.*;
+import java.lang.reflect.Field;
+import java.sql.Types;
+import triones.util.*;
+import java.io.Serializable;
+import triones.frame.sql.SQLSyntax;
+//import triones.Debug;
+
+/**域扩展信息。
+<DL>
+<DT><B>对象概述：</B><DD>
+<pre>
+无
+</pre>
+<DT><B>使用说明：</B><DD>
+<pre>
+无
+</pre>
+<DT><B>注意事项：</B><DD>
+<pre>
+无
+</pre>
+<DT><B>展望未来：</B><DD>
+<pre>
+无
+</pre>
+<DT><B>联系方式：</B><DD>
+<pre>
+无
+</pre>
+</DL>
+*@author	吴勇庆
+*@version 2001.11.23
+*/
+
+class FieldTag implements Cloneable, Serializable// extends Properties
+{	/**表名*/
+	String _TableName;
+	/**所属类名，与表名对应*/
+	String _ClassName;
+	/**域名*/
+	String _Name;
+	/**数据库域名*/
+	String _DBName;	
+	/**查询时的计算列*/
+	String _Compute;
+	/**作为条件域时的计算列*/
+	String _SortCompute;
+	/**作为分组时的计算列*/
+	String _GroupCompute;
+	/**条件表达式。*/
+	String _CndExpression;
+	/**条件中绑定值的个数*/
+	int _CndValCount;
+	/**域值*/
+	Object _Value;
+	/**域的类型*/
+	Class _ClassType;
+	/**域对应的数据库类型*/
+	//public int sqlType;
+	/**是否作为值时隐藏*/
+	boolean _IsHidden;
+	/**是否作为条件时隐藏*/
+	boolean _IsCndHidden;	
+	/**预编译SQL语句中的值占位符。*/
+	char _BindValue;
+/**作为附加条件列时的关系符（创建于 2002.08.28）.*/
+	int _CndRelation = SQLSyntax.CNDRELATION_AND;
+	/**是ArrayList形式（创建于 2002.08.28）.*/
+	boolean _IsArray = false;
+	
+	/**默认值占位符。*/
+	final static char BINDVALUE = '?';
+	/**条件表达式中列占位符。*/
+	final static char COLUMN = '#';
+	/**条件表达式中值占位符。*/
+	final static char VALUE = '@';
+	/**条件表达式中伪值的占位符，所谓伪值即以当前值的字符串形式插入语义中*/
+	final static char SIMULATEDVALUE = '$';
+	/**默认表达式。*/
+	final static String CNDEXPRESSION = COLUMN + " = " + VALUE;
+	final static String COMPUTE = "" + COLUMN;
+
+	/**
+	 * 构造方法.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	提供方法和数据结构的调用
+	可用于ArrayList转换到数组时作为默认的数组类型
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	无
+	</pre>
+	</DL>
+	 * @see SQLComment#initFields(Object)
+	 */	
+	FieldTag()
+	{
+	}
+
+	/**
+	 * 根据对象实例的域构造域扩展信息.
+<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	无
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	无
+	</pre>
+	</DL>
+	 * @param obj 对象实例.
+		 @param tblName 表名.
+	 * @param f 对象实例属性对应的域实例.
+		 @param rule 命名规则.
+	 */
+	
+	FieldTag(Object obj,Field f,SQLRule rule)
+	{	init(obj,f,rule);
+	}	
+	
+/*初始化*/
+	void init(Object obj,Field f,SQLRule rule)
+	{	_Name = f.getName();
+		//sqlType = getSQLType(f.getType());
+		_DBName = rule.toFieldDBName(_Name);
+		_Compute = COMPUTE;
+		_SortCompute = COMPUTE;
+		_GroupCompute = COMPUTE;		
+		_BindValue = BINDVALUE;
+		_CndExpression = CNDEXPRESSION;		
+		_IsHidden = false;
+		_IsCndHidden = false;
+		_ClassType = f.getType();
+		try
+		{	_Value = f.get(obj);
+		}
+		catch(Exception e)
+		{	//Debug.println("FieldTag->" + e);
+			_Value = null;
+		}		
+	}
+
+/**
+* 取提供给PrepareStatement使用的条件表达式（创建于 2002.01.05）.
+<P><DL>
+<DT><B>说明：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>示例：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>日志：</B><DD>
+<pre>
+创建于 2002.01.05.
+修改于 2002.12.18 - 增加当条件值为null时的自动修正功能.	
+</pre>
+</DL>
+* @param fullName 是否采用包括库表的列名.
+* @return 条件表达式.
+*/
+	String getPreparedCondition(boolean fullName)
+	{	String ls_dbname = getDBName(fullName);
+		String ls_express;
+
+		//修改于 2002.12.18.
+		ls_express = _CndExpression;
+		
+		if(_Value==null)
+		{	if(ls_express.equals("# != @")||ls_express.equals("# <> @"))
+				ls_express = COLUMN + " IS NOT NULL";
+			else if(ls_express.equals("# = @"))
+				ls_express = COLUMN + " IS NULL";
+		}
+	
+		ls_express = StringMethod.replaceAll(ls_express,COLUMN,ls_dbname);
+		
+		//ls_express = StringMethod.replaceAll(_CndExpression,COLUMN,ls_dbname);
+		ls_express = StringMethod.replaceAll(ls_express,SIMULATEDVALUE,"" + _Value);
+		ls_express = StringMethod.replaceAll(ls_express,VALUE,_BindValue);
+		_CndValCount = StringMethod.charCount(ls_express,_BindValue);
+		
+		return ls_express;
+	}
+	
+	/**提供给查询使用的计算式.*/
+	String getCompute(boolean fullName)
+	{	String ls_dbname = getDBName(fullName);
+		String ls_name = getName(fullName);
+		String ls_compute = _Compute.equals(COMPUTE)?ls_dbname:StringMethod.replaceAll(_Compute,COLUMN,ls_dbname);	
+		
+		if(!ls_compute.equals(ls_name))
+			ls_compute = ls_compute + " AS " + ls_name;
+			
+		return ls_compute;
+	}
+	/**提供给分组使用的计算式.*/
+	String getGroupCompute(boolean fullName)
+	{	String ls_dbname = getDBName(fullName);
+		return _GroupCompute.equals(COMPUTE)?ls_dbname:StringMethod.replaceAll(_GroupCompute,COLUMN,ls_dbname);
+	}
+	/**提供给排序使用的计算式.*/
+	String getSortCompute(boolean fullName)
+	{	String ls_dbname = getDBName(fullName);
+		return _SortCompute.equals(COMPUTE)?ls_dbname:StringMethod.replaceAll(_SortCompute,COLUMN,ls_dbname);
+	}
+	/**获取字段在数据库中的名称*/
+	String getDBName(boolean fullName)
+	{	return fullName? _TableName + "." + _DBName:_DBName;
+	}
+	
+	/**获取字段的名称*/
+	String getName(boolean fullName)
+	{	String ls_name = fullName? _ClassName + "_" + _Name:_Name;
+		return StringMethod.truncate(ls_name,DBMS.NAMING_LENGTH);
+	}
+	/**取类型在数据库中对应的类型*/
+	//public static int getSQLType(Class objType)
+	//{	String[] COLTYPE = {"java.lang.String",
+	//											"boolean",
+	//											"[B",//byte[]
+	//											"byte",												
+	//											"short",												
+	//											"int",
+	//											"long",
+	//											"float",
+	//											"double",
+	//											"jaba.math.BigDecimal",
+	//											"java.sql.Date",
+	//											"java.sql.Time",
+	//											"java.sql.Timestamp"
+	//											};
+	//	String ls_objType = objType.getName();
+	//	int li_objType = StrListMethod.findItem(COLTYPE,ls_objType);
+	//	switch(li_objType)
+	//	{	case 0:return Types.VARCHAR;
+	//		case 1:return Types.BIT;
+	//		case 2:return Types.VARBINARY;				
+	//		case 3:return Types.TINYINT;
+	//		case 4:return Types.SMALLINT;
+	//		case 5:return Types.INTEGER;
+	//		case 6:return Types.BIGINT;
+	//		case 7:return Types.REAL;
+	//		case 8:return Types.DOUBLE;
+	//		case 9:return Types.NUMERIC;
+	//		case 10:return Types.DATE;
+	//		case 11:return Types.TIME;
+	//		case 12:return Types.TIMESTAMP;
+	//		default:Debug.println("unknow type:" + ls_objType);
+	//						return Types.VARCHAR;
+	//	}		
+	//}
+	
+}
+
