@@ -51,6 +51,27 @@ package Coprize.bas;
 
 public interface ISheet extends IExtend
 {
+	/** 增加一个数据行（创建于2011.12.13）
+	 <example>
+	 <code>
+	 略
+	 </code>
+	 <p>说明</p>
+	 <code>
+	 增加一个数据行
+	 </code>
+	 <p>日志</p>
+	 <code>
+	 创建于2011.12.13 – 钱文豪
+	 </code>
+	 </example>
+	 @param row 行对象
+	 @return 
+	 int - 数据行序号(小于0则说明新增失败).
+	 
+	*/
+
+
 	
 /**
 * 增加数据行（创建于 2012.05.23）.
@@ -96,6 +117,28 @@ public interface ISheet extends IExtend
 * @see #AddRow(int,IRow)
 */
 	int RemoveRow(int index);
+
+
+	/** 获取单元格对象（创建于2012.05.22）
+	 <example>
+	 <code>
+	 略
+	 </code>
+	 <p>说明</p>
+	 <code>
+	 略
+	 </code>
+	 <p>日志</p>
+	 <code>
+	 创建于2012.05.22 – 钱文豪
+	 </code>
+	 </example>
+	 @param rowIndex 行号
+	 @param columnName 列名
+	 @return 
+	 IField - 单元格对象.
+	 
+	*/
 
 	
 /**

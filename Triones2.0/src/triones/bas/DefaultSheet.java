@@ -1,9 +1,28 @@
+/*
+ **********************************
+  ,'''╭⌒╮⌒╮.',''',,',.'',,','',.  
+ ╱◥██◣''o',''',,',.''.'',,',.  
+｜田｜田田│ '',,',.',''',,',.''  
+╬╬╬╬╬╬╬╬╬╬╬╬╬╬╬╬╬╬  \|/\|/\|/\|/\|/
+			
+Love life, love programming  -- mu jun
+
+ ***********************************/
+package triones.bas;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import Coprize.bas.IField;
+import Coprize.bas.IRow;
+import Coprize.bas.ISheet;
+
 /**
- * 对象中文名（创建于 2012-5-27）.
+* 二维表数据对象（创建于 2012.05.23）.
 <DL>
 <DT><B>对象概述：</B><DD>
 <pre>
-略
+可对二维表的行和单元格进行增删改查操作.
 </pre>
 <DT><B>使用说明：</B><DD>
 <pre>
@@ -27,18 +46,9 @@
  电 话：13585880448
 </pre>
 </DL>
- * @author	Administrator
- * @version	2012-5-27
- */
-package triones.bas;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import Coprize.bas.IField;
-import Coprize.bas.IRow;
-import Coprize.bas.ISheet;
-
+* @author	mujun
+* @version	2012.05.23
+*/
 public class DefaultSheet extends DefaultExtend implements ISheet {
 	
 	/**
@@ -153,17 +163,13 @@ public class DefaultSheet extends DefaultExtend implements ISheet {
 	@Override
 	public IField Item(int rowIndex, int columnIndex)
 	{
-		if(rowIndex < 1 || columnIndex < 1)
+		if(rowIndex < 1 || columnIndex < 1 || rowIndex >_rows.size() || columnIndex >  _rows.get(rowIndex-1).FieldCount())
 		{
 			return null;
 		}
-		else
-		{
-			return _rows.get(rowIndex).Field(columnIndex);
-		}
+		return _rows.get(rowIndex-1).Field(columnIndex-1);
 	}
 
-	
 	/**
 	* 总行数 DefaultSheet 实现（创建于 2012.05.23）.
 	<P><DL>
@@ -205,14 +211,17 @@ public class DefaultSheet extends DefaultExtend implements ISheet {
 	创建于 2012-5-27.
 	</pre>
 	</DL>
-	* @param index 行序号
-	* @return
+	* @param index 行序号 从1开始计数
+	* @return 行对象的引用 如果序号不存返回null
 	* @see package.class#method
 	 */
 	 IRow Row(int index)
 	{
-		
-		return _rows.get(index);
+		if(index < 1 || index > _rows.size() )
+		{
+			return null;
+		}
+		return _rows.get(index-1);
 	}
 
 	/**
@@ -231,7 +240,7 @@ public class DefaultSheet extends DefaultExtend implements ISheet {
 	创建于 2012-5-28.
 	</pre>
 	</DL>
-	* @param index 行序号.
+	* @param index 行序号  .
 	* @param attrName 属性名称.
 	* @param attrValue 属性值.
 	* @return 小于0代表失败.
@@ -239,10 +248,10 @@ public class DefaultSheet extends DefaultExtend implements ISheet {
 	*/
 	public int SetRowAttritbute(int index,String attrName, Object attrValue)
 	{
-		if(index < 0 ||null == attrName){
+		if(index < 1 || index > _rows.size() ||null == attrName){
 			return -1;
 		}
-		return _rows.get(index).SetAttribute(attrName, attrValue);
+		return _rows.get(index-1).SetAttribute(attrName, attrValue);
 	}
 	
 	/**
@@ -261,13 +270,16 @@ public class DefaultSheet extends DefaultExtend implements ISheet {
 	创建于 2012-5-28.
 	</pre>
 	</DL>
-	* @param index 行序号.
+	* @param index 行序号.序号从1开始计数
 	* @param attrName 属性名称.
-	* @return 小于0代表失败.
+	* @return 行号不存在，或者属性不存在返回 null
 	* @see package.class#method
 	*/
 	public Object GetRowAttritbute(int index,String attrName)
 	{
-		return _rows.get(index).GetAttribute(attrName);
+		if(index <1 ||index >_rows.size()){
+			return null;
+		}
+		return _rows.get(index-1).GetAttribute(attrName);
 	}
 }

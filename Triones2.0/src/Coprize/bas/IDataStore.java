@@ -203,6 +203,8 @@ public interface IDataStore extends Cloneable,IExtend
 */
 	Object GetRowAttritbute(int index, String attrName);
 	
+
+	
 /**
 * 根据列名取列的序号（创建于 2012.05.23）.
 <P><DL>
@@ -362,6 +364,56 @@ public interface IDataStore extends Cloneable,IExtend
 */
 	Object GetItemValue(int rowIndex, int colIndex);
 
+/**
+* <img src="new.gif" width="28" height="11" border="0">设置单元格属性（创建于 2012.05.23）.
+<P><DL>
+<DT><B>说明：</B><DD>
+<pre>
+	 内置属性：
+	 OLDVALUE      -  原始值
+</pre>
+<DT><B>示例：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>日志：</B><DD>
+<pre>
+创建于 2012.05.23 - 吴勇庆.
+</pre>
+</DL>
+* @param row 行序号.
+* @param col 列序号.
+* @param attrName 属性名称.
+* @param attrValue 属性值.
+* @return 小于0代表失败.
+* @see #GetItemAttribute(int,int,String)
+*/
+	int SetItemAttritbute(int row,int col,String attrName, Object attrValue);
+
+	
+/**
+* <img src="new.gif" width="28" height="11" border="0">取单元格属性值（创建于 2012.05.23）.
+<P><DL>
+<DT><B>说明：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>示例：</B><DD>
+<pre>
+略
+</pre>
+<DT><B>日志：</B><DD>
+<pre>
+创建于 2012.05.23 - 吴勇庆.
+</pre>
+</DL>
+* @param row 行序号.
+* @param col 列序号.
+* @param attrName 属性名.
+* @return 属性值.
+* @see #SetItemAttribute(int,int,String,Object)
+*/
+	Object GetItemAttritbute(int row,int col,String attrName);
 	
 /**
 * 接受数据更新（创建于 2012.05.23）.

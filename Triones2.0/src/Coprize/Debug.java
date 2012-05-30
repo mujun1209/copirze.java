@@ -211,9 +211,12 @@ public class Debug
 		List list = new ArrayList();
 		list.add("11");
 		list.add(0,"22");
-		list.add(-1,"22");
+		list.add(1,"33");
+		list.add(1,"44");
+		list.add(1,"55");
+		
 		for (int i = 0; i < list.size(); i++) {
-			System.out.println(list.get(i));
+			System.out.println(i+":"+list.get(i));
 		}
 		
 	}

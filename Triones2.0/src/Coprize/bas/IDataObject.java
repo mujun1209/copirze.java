@@ -15,7 +15,7 @@ package Coprize.bas;
 
 
 /**
-* <img src="new.gif" width="28" height="11" border="0">数据对象接口（创建于 2012.02.02）.
+* 数据对象接口（创建于 2012.02.02）.
 <DL>
 <DT><B>对象概述：</B><DD>
 <pre>

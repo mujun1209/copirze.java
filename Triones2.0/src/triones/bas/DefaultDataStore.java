@@ -12,8 +12,8 @@ package triones.bas;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import Coprize.bas.IDataStore;
+import Coprize.bas.IField;
 import Coprize.bas.IRow;
 import Coprize.bas.ISheet;
 
@@ -163,7 +163,7 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	private DefaultSheet _filteredSheets=new DefaultSheet();
 	
 	/**
-	* DefaultStore 的列column的数据集（创建于 2003.03.13）.
+	* DefaultStore 的列column的数据集（创建于 2012-5-27）.
 	<DL>
 	<DT><B>说明：</B><DD>
 	<pre>
@@ -180,8 +180,7 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	</DL>
 	*/
 	private List<DefaultField> _columns = new ArrayList<DefaultField>();
-	
-	
+		
 	/**
 	 * 设置业务数据名称（创建于 2012-5-27）.
 	<P><DL>
@@ -206,6 +205,7 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	public int SetName(String name)
 	{
 		this._name = name;
+		this._modifty = true;
 		return 1;
 	}
 
@@ -231,12 +231,11 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	@Override
 	public String GetName()
 	{
-
 		return this._name;
 	}
 
 	/**
-	 * 设置列属性（创建于 2012.05.23）.
+	 * 设置列属性（创建于 2012-5-27）.
 	<P><DL>
 	<DT><B>说明：</B><DD>
 	<pre>
@@ -263,7 +262,8 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	@Override
 	public int SetColumnAttritbute(int index, String attrName, Object attrValue)
 	{
-		 return _columns.get(index).SetAttribute(attrName, attrValue);
+		_modifty = true;
+		return _columns.get(index).SetAttribute(attrName, attrValue);
 	}
 
 	/**
@@ -290,12 +290,11 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	@Override
 	public Object GetColumnAttritbute(int index, String attrName)
 	{
-
 		return _columns.get(index).GetAttribute(attrName);
 	}
 
 	/**
-	* 设置行属性（创建于 2012.05.23）.
+	* 设置行属性（创建于 2012-5-27）.
 	<P><DL>
 	<DT><B>说明：</B><DD>
 	<pre>
@@ -321,6 +320,7 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	@Override
 	public int SetRowAttritbute(int index, String attrName, Object attrValue)
 	{
+		_modifty = true;
 		//return  _primarySheets.Row(index).SetAttribute(attrName, attrValue);
 		return  _primarySheets.SetRowAttritbute(index, attrName, attrValue);
 	}
@@ -542,7 +542,13 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	@Override
 	public int SetItemValue(int rowIndex, int colIndex, Object val)
 	{
-		return _primarySheets.Item(rowIndex, colIndex).SetValue(val);
+		IField lfield = _primarySheets.Item(rowIndex, colIndex);
+		
+		if(null != lfield.GetValue())  //如果给item原来有值，则将原来的值保存到oldvalue
+		{
+			lfield.SetAttribute("oldvalue", lfield.GetValue());
+		}
+		return lfield.SetValue(val);
 	}
 
 	/**
@@ -657,7 +663,7 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	}
 
 	/**
-	* 抛弃指定区域的行记录（创建于 2012.05.23）.
+	* 抛弃指定区域的行记录（创建于 2012-5-27）.
 	<P><DL>
 	<DT><B>说明：</B><DD>
 	<pre>
@@ -919,5 +925,65 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 			return -1;
 		}
 		return 1;
+	}
+
+	/**
+	* 方法简单用途描述（创建于 2012-5-30）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2012-5-30.
+	</pre>
+	</DL>
+	* @param row
+	* @param col
+	* @param attrName
+	* @param attrValue
+	* @return
+	* @see Coprize.bas.IDataStore#SetItemAttritbute(int, int, java.lang.String, java.lang.Object)
+	*/
+	@Override
+	public int SetItemAttritbute(int row, int col, String attrName,
+			Object attrValue)
+	{
+		
+		return 0;
+	}
+
+	/**
+	* 方法简单用途描述（创建于 2012-5-30）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2012-5-30.
+	</pre>
+	</DL>
+	* @param row
+	* @param col
+	* @param attrName
+	* @return
+	* @see Coprize.bas.IDataStore#GetItemAttritbute(int, int, java.lang.String)
+	*/
+	@Override
+	public Object GetItemAttritbute(int row, int col, String attrName)
+	{
+		
+		return null;
 	}
 }
