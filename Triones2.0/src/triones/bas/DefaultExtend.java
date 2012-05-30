@@ -112,6 +112,25 @@ public class DefaultExtend implements IExtend {
 	private ArrayList<String> keyExpr = new ArrayList<String>();
 
 	/**
+	 * 扩展属性是否区分大小写（创建于  2012.05.27）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	默认情况不区分，防止使用者使用相同名称的属性 产生误解
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2012.05.23.
+	</pre>
+	</DL>
+	*/
+	private boolean _caseLetter = false;
+	
+	/**
 	 * 
 	 * 扩展属性类--设置属性的默认实现（创建于 2012-5-8）.
 	 * <P>
@@ -152,20 +171,21 @@ public class DefaultExtend implements IExtend {
 	@Override
 	public int SetAttribute(String key, Object val)
 	{
+		key = GetCaseLetterName(key);
 		if (key == null || "".equals(key))
 		{
 			return 0;
 		}
 
 		String[] keyArr = key.split(":");
-		if (keyExpr.contains(keyArr[0].trim() + ":readonly"))
+		if (keyExpr.contains(keyArr[0] + ":readonly"))
 		{
 			return -1;
 		}
 
-		this._attributes.put(key.trim(), val);
+		this._attributes.put(key, val);
 
-		keyExpr.add(key.trim());
+		keyExpr.add(key);
 		return 1;
 	}
 
@@ -198,13 +218,14 @@ public class DefaultExtend implements IExtend {
 	 * 
 	 * @param key
 	 *            属性名.
-	 * @return 属性值.
+	 * @return 属性值.如果key不存在则返回null(HashMap默认的返回值)
 	 * @see #SetAttribute(String,Object)
 	 */
 	@Override
 	public Object GetAttribute(String key)
 	{
-		return this._attributes.get(key.split(":")[0].trim());
+		key = GetCaseLetterName(key);
+		return this._attributes.get(key.split(":")[0]);
 	}
 
 	/**
@@ -482,11 +503,11 @@ public class DefaultExtend implements IExtend {
 	@Override
 	public boolean Contain(String key)
 	{
-		return _attributes.containsKey(key.trim());
+		return _attributes.containsKey(GetCaseLetterName(key));
 	}
 
 	/**
-	 * 判断扩展属性是否存在（创建于 2012.01.04）.
+	 * 判断扩展属性是否只读（创建于 2012.01.04）.
 	 * <P>
 	 * <DL>
 	 * <DT><B>说明：</B>
@@ -519,6 +540,7 @@ public class DefaultExtend implements IExtend {
 	@Override
 	public boolean IsReadOnly(String key)
 	{
+		key = GetCaseLetterName(key);
 		for (String keyStr : keyExpr)
 		{
 			if ((key + ":readonly").equals(keyStr))
@@ -571,4 +593,60 @@ public class DefaultExtend implements IExtend {
 		return in.readObject();
 	}
 
+	/**
+	* 私有方法 用户处理属性名称（创建于 2012-5-30）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	简单的区别是否区分大小写，清除前后的空格
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2012-5-30.
+	</pre>
+	</DL>
+	* @param key 需要处理的key
+	* @return 处理后的属性名
+	 */
+	private String GetCaseLetterName(String key)
+	{
+		if( null == key )
+		{
+			return key;
+		}
+		if(_caseLetter)
+		{
+			return key.trim();
+		}else
+		{
+			return key.toLowerCase().trim();
+		}
+	}
+	
+	/**
+	* 查看属性名称是否区分大小写（创建于 2012-5-30）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2012-5-30.
+	</pre>
+	</DL>
+	* @return 属性名称是否区分大小写
+	 */
+	public boolean GetCaseLetter()
+	{
+		return _caseLetter;
+	}
 }

@@ -209,12 +209,21 @@ public class Debug
 	public static void main(String[] args)
 	{	
 		List list = new ArrayList();
-		list.add("11");
-		list.add(0,"22");
-		list.add(1,"33");
-		list.add(1,"44");
-		list.add(1,"55");
 		
+		try
+		{
+			list.add("11");
+			list.add(0,"22");
+			list.add(1,"33");
+			list.add(1,"44");
+			list.add(-2,"55");
+		}
+		catch (Exception e)
+		{
+			//e.printStackTrace();
+		}
+		
+		System.out.println(list.size());
 		for (int i = 0; i < list.size(); i++) {
 			System.out.println(i+":"+list.get(i));
 		}

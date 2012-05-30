@@ -93,7 +93,8 @@ class DefaultRow extends DefaultExtend implements IRow {
 	<P><DL>
 	<DT><B>说明：</B><DD>
 	<pre>
-	构造数据行时默认添加扩展属性 ID =null, STATUS=null;
+	构造数据行时默认添加扩展属性 ID =null,
+	 STATUS 可取值：New | NewModified | Modified | Deleted | NotModified 
 	</pre>
 	<DT><B>示例：</B><DD>
 	<pre>
@@ -109,8 +110,8 @@ class DefaultRow extends DefaultExtend implements IRow {
 	public DefaultRow()
 	{
 		super();
-		this.SetAttribute("ID:readonly", null);
-		this.SetAttribute("STATUS", null);
+		this.SetAttribute("ID", null);
+		this.SetAttribute("STATUS", "New");
 	}
 
 	/**
@@ -149,7 +150,7 @@ class DefaultRow extends DefaultExtend implements IRow {
 	@Override
 	public IField Field(int index)
 	{
-		if(index <1 || index >_row.size())
+		if(index <1 || index > _row.size())
 		{
 			return null;
 		}

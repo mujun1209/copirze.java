@@ -11,6 +11,7 @@ Love life, love programming  -- mu jun
 package triones.bas;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 import Coprize.bas.IField;
@@ -56,7 +57,7 @@ public class DefaultSheet extends DefaultExtend implements ISheet {
 	<DL>
 	<DT><B>说明：</B><DD>
 	<pre>
-	略
+	默认实现是LinkedList ,考虑到数据的插入等操作比较频繁
 	</pre>
 	<DT><B>示例：</B><DD>
 	<pre>
@@ -68,8 +69,31 @@ public class DefaultSheet extends DefaultExtend implements ISheet {
 	</pre>
 	</DL>
 	*/
-	private List<DefaultRow> _rows = new ArrayList<DefaultRow>();
+	private List<DefaultRow> _rows = new LinkedList<DefaultRow>();
 
+	/**
+	* 无参构造方法（创建于 2012-5-30）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	 默认添加一个空的行，确保行号是从1开始计数
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2012-5-30.
+	</pre>
+	</DL>
+	* @see package.class#method
+	 */
+	public DefaultSheet()
+	{
+		_rows.add(0,null);
+	}
+	
 	/**
 	*  增加数据行 DefaultSheet 实现（创建于 2012-5-27）.
 	<P><DL>
@@ -94,15 +118,19 @@ public class DefaultSheet extends DefaultExtend implements ISheet {
 	@Override
 	public int AddRow(int index, IRow row)
 	{
-		if (index == 0)
+		DefaultRow irow = (DefaultRow)row;
+		irow.SetAttribute("STATUS", "new");
+		if (index == 0 || index >RowCount() )
 		{
-			_rows.add((DefaultRow)row);
+			_rows.add(RowCount(),irow);
+			return RowCount();
 		}
 		else
 		{
-			_rows.add(index, (DefaultRow)row);
+			_rows.add(index, irow);
+			return index;
 		}
-		return _rows.size();
+		
 	}
 
 	/**
@@ -137,7 +165,7 @@ public class DefaultSheet extends DefaultExtend implements ISheet {
 			return -1;
 		}
 		
-		return _rows.size();
+		return RowCount();
 	}
 
 	/**
@@ -163,11 +191,11 @@ public class DefaultSheet extends DefaultExtend implements ISheet {
 	@Override
 	public IField Item(int rowIndex, int columnIndex)
 	{
-		if(rowIndex < 1 || columnIndex < 1 || rowIndex >_rows.size() || columnIndex >  _rows.get(rowIndex-1).FieldCount())
+		if(rowIndex < 1 || columnIndex < 1 || rowIndex >RowCount() || columnIndex >  _rows.get(rowIndex).FieldCount())
 		{
 			return null;
 		}
-		return _rows.get(rowIndex-1).Field(columnIndex-1);
+		return _rows.get(rowIndex).Field(columnIndex-1);
 	}
 
 	/**
@@ -217,11 +245,11 @@ public class DefaultSheet extends DefaultExtend implements ISheet {
 	 */
 	 IRow Row(int index)
 	{
-		if(index < 1 || index > _rows.size() )
+		if(index < 1 || index > RowCount() )
 		{
 			return null;
 		}
-		return _rows.get(index-1);
+		return _rows.get(index);
 	}
 
 	/**
@@ -248,10 +276,10 @@ public class DefaultSheet extends DefaultExtend implements ISheet {
 	*/
 	public int SetRowAttritbute(int index,String attrName, Object attrValue)
 	{
-		if(index < 1 || index > _rows.size() ||null == attrName){
+		if(index < 1 || index > RowCount() ||null == attrName){
 			return -1;
 		}
-		return _rows.get(index-1).SetAttribute(attrName, attrValue);
+		return _rows.get(index).SetAttribute(attrName, attrValue);
 	}
 	
 	/**
@@ -277,9 +305,35 @@ public class DefaultSheet extends DefaultExtend implements ISheet {
 	*/
 	public Object GetRowAttritbute(int index,String attrName)
 	{
-		if(index <1 ||index >_rows.size()){
+		if(index <1 ||index >RowCount()){
 			return null;
 		}
-		return _rows.get(index-1).GetAttribute(attrName);
+		return _rows.get(index).GetAttribute(attrName);
+	}
+
+	/**
+	* 清空sheet区域数据（创建于 2012-5-30）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2012-5-30.
+	</pre>
+	</DL>
+	* @return
+	* @see package.class#method
+	 */
+	public int Clear()
+	{
+		_rows.clear();
+		_rows.add(0, null);
+		return 1;
 	}
 }
