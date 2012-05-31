@@ -30,7 +30,7 @@
 * @author	Administrator
 * @version	2012-5-9
 */
-package triones.bas.junit;
+package Triones.bas.junit;
 
 import static org.junit.Assert.*;
 
@@ -38,15 +38,15 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import triones.bas.DefaultExtend;
+import Triones.bas.Extend;
 
 
-public class DefaultExtendTest {
-	private DefaultExtend extend;
+public class ExtendTest {
+	private Extend extend;
 	private String[] result;
 	@Before
 	public void setUp() throws Exception {
-		extend = new DefaultExtend();
+		extend = new Extend();
 		extend.SetAttribute("name:readonly", " mujun");
 		extend.SetAttribute(" yifu:color", "red ");
 		extend.SetAttribute(" age", "19");

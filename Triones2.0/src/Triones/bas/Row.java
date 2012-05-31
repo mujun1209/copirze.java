@@ -8,7 +8,7 @@
 Love life, love programming  -- mu jun
 
  ***********************************/
-package triones.bas;
+package Triones.bas;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -67,7 +67,7 @@ import Coprize.bas.IRow;
  * @author mujun
  * @version 2012-5-27
  */
-class DefaultRow extends DefaultExtend implements IRow {
+class Row extends Extend implements IRow {
 
 	/**
 	 * 数据行对象 一组字段的集合（创建于  2012.05.27）.
@@ -86,7 +86,7 @@ class DefaultRow extends DefaultExtend implements IRow {
 	</pre>
 	</DL>
 	*/
-	List<DefaultField> _row = new ArrayList<DefaultField>();
+	List<Field> _row = new ArrayList<Field>();
 
 	/**
 	* 默认无参构造方法（创建于 2012-5-29）.
@@ -94,7 +94,7 @@ class DefaultRow extends DefaultExtend implements IRow {
 	<DT><B>说明：</B><DD>
 	<pre>
 	构造数据行时默认添加扩展属性 ID =null,
-	 STATUS 可取值：New | NewModified | Modified | Deleted | NotModified 
+	 STATUS 可取值：New ! Modified ! Deleted ! NnChanged !
 	</pre>
 	<DT><B>示例：</B><DD>
 	<pre>
@@ -107,7 +107,7 @@ class DefaultRow extends DefaultExtend implements IRow {
 	</DL>
 	* @see package.class#method
 	 */
-	public DefaultRow()
+	public Row()
 	{
 		super();
 		this.SetAttribute("ID", null);

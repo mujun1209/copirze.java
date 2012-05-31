@@ -9,7 +9,7 @@ Love life, love programming  -- mu jun
 
  ***********************************/
 
-package triones.bas;
+package Triones.bas;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -71,7 +71,7 @@ import Coprize.bas.IExtend;
  * @author 穆俊
  * @version 2012.05.06
  */
-public class DefaultExtend implements IExtend {
+public class Extend implements IExtend {
 	
 	/**
 	 * 扩展属性名称和值的数据集合（创建于  2012.05.27）.
@@ -172,16 +172,10 @@ public class DefaultExtend implements IExtend {
 	public int SetAttribute(String key, Object val)
 	{
 		key = GetCaseLetterName(key);
-		if (key == null || "".equals(key))
-		{
-			return 0;
-		}
+		if (key == null || "".equals(key)) 	return 0;
 
 		String[] keyArr = key.split(":");
-		if (keyExpr.contains(keyArr[0] + ":readonly"))
-		{
-			return -1;
-		}
+		if (keyExpr.contains(keyArr[0] + ":readonly")) return -1;
 
 		this._attributes.put(key, val);
 
@@ -276,8 +270,7 @@ public class DefaultExtend implements IExtend {
 		String[] eqExpr = cndExp.split("="); // 等于表达式的数组
 		String[] selExpr = cndExp.split(":"); // 特性表达式数组
 
-		System.out.println("等号表达式length：" + eqExpr.length + "特性表达式："
-				+ selExpr.length);
+		//System.out.println("等号表达式length：" + eqExpr.length + "特性表达式：" + selExpr.length);
 
 		if (selExpr.length > 1 && eqExpr.length > 1) // 两种表达式都有
 		{
@@ -297,9 +290,7 @@ public class DefaultExtend implements IExtend {
 					resNames = getEqExpr(keyExpr, cndExp);
 				}
 				else
-				{
 					return _attributes.keySet().toArray(new String[0]);
-				}
 
 		return resNames.toArray(new String[0]);
 	}
@@ -345,9 +336,8 @@ public class DefaultExtend implements IExtend {
 		String[] eqExpr = expr.split("="); // 等于表达式的数组
 		ArrayList<String> resNames = new ArrayList<String>();
 		if (srclist == null || srclist.size() == 0)
-		{
 			return srclist == null ? new ArrayList<String>() : srclist;
-		}
+
 		if (eqExpr.length > 1)
 		{
 			for (String srcStr : srclist)
@@ -358,15 +348,9 @@ public class DefaultExtend implements IExtend {
 					boolean matchexpr = false;
 					for (String exp : eqExpr[1].split(","))
 					{
-						if (srcStr.equals(exp))
-						{
-							matchexpr = true;
-						}
+						if (srcStr.equals(exp)) matchexpr = true;
 					}
-					if (!matchexpr)
-					{
-						resNames.add(srcStr);
-					}
+					if (!matchexpr) resNames.add(srcStr);
 
 				}
 				else
@@ -374,45 +358,31 @@ public class DefaultExtend implements IExtend {
 					{
 						for (String exp : eqExpr[1].split(","))
 						{
-							if (srcStr.indexOf(exp) > -1)
-							{
-								resNames.add(srcStr);
-							}
+							if (srcStr.indexOf(exp) > -1) resNames.add(srcStr);
 						}
 
 					}
 					else
 						if ("^".equals(eqExpr[0]))
 						{
-
 							for (String exp : eqExpr[1].split(","))
 							{
-								if (srcStr.startsWith(exp))
-								{
-									resNames.add(srcStr);
-								}
+								if (srcStr.startsWith(exp)) resNames.add(srcStr);
 							}
-
 						}
 						else
 							if ("$".equals(eqExpr[0]))
 							{
 								for (String exp : eqExpr[1].split(","))
 								{
-									if (srcStr.endsWith(exp))
-									{
-										resNames.add(srcStr);
-									}
+									if (srcStr.endsWith(exp)) resNames.add(srcStr);
 								}
-
 							}
 			}
 		}
 		else
 		{
-
 			return srclist;
-
 		}
 
 		return resNames;
@@ -460,10 +430,7 @@ public class DefaultExtend implements IExtend {
 		for (String srcStr : srclist)
 		{
 			String[] keyArr = srcStr.split(":");
-			if (keyArr.length > 1 && expr.equals(keyArr[1]))
-			{
-				resNames.add(keyArr[0]);
-			}
+			if (keyArr.length > 1 && expr.equals(keyArr[1])) resNames.add(keyArr[0]);
 		}
 
 		return resNames;
@@ -491,7 +458,7 @@ public class DefaultExtend implements IExtend {
 	 * <DD>
 	 * 
 	 * <pre>
-	 * 	创建于 2012.01.04 - 吴勇庆.
+	 * 	创建于 2012.01.04 - .
 	 * </pre>
 	 * 
 	 * </DL>
@@ -528,7 +495,7 @@ public class DefaultExtend implements IExtend {
 	 * <DD>
 	 * 
 	 * <pre>
-	 * 	创建于 2012.01.04 - 吴勇庆.
+	 * 	创建于 2012.01.04 - .
 	 * </pre>
 	 * 
 	 * </DL>
@@ -544,9 +511,7 @@ public class DefaultExtend implements IExtend {
 		for (String keyStr : keyExpr)
 		{
 			if ((key + ":readonly").equals(keyStr))
-			{
 				return true;
-			}
 		}
 		return false;
 	}
@@ -614,17 +579,9 @@ public class DefaultExtend implements IExtend {
 	 */
 	private String GetCaseLetterName(String key)
 	{
-		if( null == key )
-		{
-			return key;
-		}
-		if(_caseLetter)
-		{
-			return key.trim();
-		}else
-		{
-			return key.toLowerCase().trim();
-		}
+		if( null == key ) return key;
+		if(_caseLetter) return key.trim();
+		return key.toLowerCase().trim();
 	}
 	
 	/**

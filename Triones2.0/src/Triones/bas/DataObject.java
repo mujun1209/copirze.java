@@ -9,7 +9,7 @@ Love life, love programming  -- mu jun
 
  ***********************************/
 
-package triones.bas;
+package Triones.bas;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -68,7 +68,7 @@ import Coprize.bas.IField;
  * @author mujun
  * @version 2012-5-9
  */
-public class DefaultDataObject extends DefaultExtend implements IDataObject {
+public class DataObject extends Extend implements IDataObject {
 
 	/**
 	 * 数据对象名称（创建于  2012.05.27）.
@@ -106,7 +106,7 @@ public class DefaultDataObject extends DefaultExtend implements IDataObject {
 	</pre>
 	</DL>
 	*/
-	private Map<String, DefaultField> _fields = new HashMap<String, DefaultField>();
+	private Map<String, Field> _fields = new HashMap<String, Field>();
 	
 	/**
 	 * 实体类型（创建于  2012.05.27）.
@@ -364,7 +364,7 @@ public class DefaultDataObject extends DefaultExtend implements IDataObject {
 	@Override
 	public int AddField(String fieldName, String fieldType)
 	{
-		_fields.put(fieldName, new DefaultField(fieldName, fieldType, null));
+		_fields.put(fieldName, new Field(fieldName, fieldType, null));
 		return 1;
 	}
 

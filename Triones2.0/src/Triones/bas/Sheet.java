@@ -8,9 +8,10 @@
 Love life, love programming  -- mu jun
 
  ***********************************/
-package triones.bas;
+package Triones.bas;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -50,7 +51,7 @@ import Coprize.bas.ISheet;
 * @author	mujun
 * @version	2012.05.23
 */
-public class DefaultSheet extends DefaultExtend implements ISheet {
+public class Sheet extends Extend implements ISheet{
 	
 	/**
 	* DefaultSheet 的行 Row 的数据集（创建于 2003.03.13）.
@@ -69,7 +70,7 @@ public class DefaultSheet extends DefaultExtend implements ISheet {
 	</pre>
 	</DL>
 	*/
-	private List<DefaultRow> _rows = new LinkedList<DefaultRow>();
+	private List<Row> _rows = new LinkedList<Row>();
 
 	/**
 	* 无参构造方法（创建于 2012-5-30）.
@@ -89,7 +90,7 @@ public class DefaultSheet extends DefaultExtend implements ISheet {
 	</DL>
 	* @see package.class#method
 	 */
-	public DefaultSheet()
+	public Sheet()
 	{
 		_rows.add(0,null);
 	}
@@ -118,7 +119,7 @@ public class DefaultSheet extends DefaultExtend implements ISheet {
 	@Override
 	public int AddRow(int index, IRow row)
 	{
-		DefaultRow irow = (DefaultRow)row;
+		Row irow = (Row)row;
 		irow.SetAttribute("STATUS", "new");
 		if (index == 0 || index >RowCount() )
 		{
@@ -156,15 +157,8 @@ public class DefaultSheet extends DefaultExtend implements ISheet {
 	@Override
 	public int RemoveRow(int index)
 	{
-		try
-		{
-			_rows.remove(index);
-		}
-		catch (Exception e)
-		{
-			return -1;
-		}
-		
+		if(index<1 ||index >RowCount()) return -1;
+		_rows.remove(index);
 		return RowCount();
 	}
 
@@ -191,10 +185,8 @@ public class DefaultSheet extends DefaultExtend implements ISheet {
 	@Override
 	public IField Item(int rowIndex, int columnIndex)
 	{
-		if(rowIndex < 1 || columnIndex < 1 || rowIndex >RowCount() || columnIndex >  _rows.get(rowIndex).FieldCount())
-		{
-			return null;
-		}
+		int lcount=0;
+		if( (lcount = GetRowColumnCount(rowIndex)) ==-1 || columnIndex >  lcount) return null;
 		return _rows.get(rowIndex).Field(columnIndex-1);
 	}
 
@@ -335,5 +327,36 @@ public class DefaultSheet extends DefaultExtend implements ISheet {
 		_rows.clear();
 		_rows.add(0, null);
 		return 1;
+	}
+
+	/**
+	* 根据行号，获取该行的字段数量（创建于 2012-5-31）.
+	<P><DL>
+	<DT><B>说明：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>示例：</B><DD>
+	<pre>
+	略
+	</pre>
+	<DT><B>日志：</B><DD>
+	<pre>
+	创建于 2012-5-31.
+	</pre>
+	</DL>
+	* @param rowIndex 行号
+	* @return 如果行号不存在返回-1,存在返回行的字段数量
+	* @see package.class#method
+	 */
+	private int GetRowColumnCount(int rowIndex)
+	{
+		if(rowIndex < 1 || rowIndex >RowCount()) return -1;
+		return _rows.get(rowIndex).FieldCount();
+	}
+
+	public Iterator<Row> iterator()
+	{
+		return _rows.iterator();
 	}
 }

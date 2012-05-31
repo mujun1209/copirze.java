@@ -8,7 +8,7 @@
 Love life, love programming  -- mu jun
 
 ***********************************/
-package triones.bas;
+package Triones.bas;
 
 import Coprize.bas.IField;
 
@@ -44,7 +44,7 @@ import Coprize.bas.IField;
 * @author	Administrator
 * @version	2012-5-9
 */
-public class DefaultField extends DefaultExtend implements IField {
+public class Field extends Extend implements IField {
 	
 	/**
 	 * 字段标题（创建于  2012.05.27）.
@@ -145,7 +145,7 @@ public class DefaultField extends DefaultExtend implements IField {
 	* @param _value 字段值
 	* @see package.class#method
 	 */
-	public DefaultField(String _caption, String _name, String _type,
+	public Field(String _caption, String _name, String _type,
 			Object _value) {
 		super();
 		this._caption = _caption;
@@ -175,7 +175,7 @@ public class DefaultField extends DefaultExtend implements IField {
 	* @param _value 字段值
 	* @see package.class#method
 	 */
-	public DefaultField(String _name, String _type,
+	public Field(String _name, String _type,
 			Object _value) {
 		super();
 		this._caption = "";
@@ -202,7 +202,7 @@ public class DefaultField extends DefaultExtend implements IField {
 	</DL>
 	* @see package.class#method
 	 */
-	public DefaultField(){}
+	public Field(){}
 
 	/**
 	* 获取字段标题（创建于 2012-5-29）.
@@ -358,11 +358,8 @@ public class DefaultField extends DefaultExtend implements IField {
 	public int SetType(String dataType) {
 		String lowtype = dataType.toLowerCase();
 		if(!"int".equals(lowtype) ||!"datetime".equals(lowtype)  ||!"varchar".equals(lowtype) || !"number".equals(lowtype))
-		{
 			return -1;
-		}
 		this._type = lowtype;
-		
 		return 1;
 	}
 

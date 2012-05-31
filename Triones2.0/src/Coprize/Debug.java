@@ -2,6 +2,7 @@ package Coprize;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 
 
@@ -210,24 +211,15 @@ public class Debug
 	{	
 		List list = new ArrayList();
 		
-		try
-		{
 			list.add("11");
 			list.add(0,"22");
 			list.add(1,"33");
 			list.add(1,"44");
-			list.add(-2,"55");
-		}
-		catch (Exception e)
-		{
-			//e.printStackTrace();
-		}
+			//list.add(-2,"55");
+
 		
-		System.out.println(list.size());
-		for (int i = 0; i < list.size(); i++) {
-			System.out.println(i+":"+list.get(i));
-		}
-		
+		System.out.println(5>>1);
+		Iterator<String> it = list.iterator();
 	}
 }
 

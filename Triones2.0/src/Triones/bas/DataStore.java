@@ -8,9 +8,10 @@
 Love life, love programming  -- mu jun
 
  ***********************************/
-package triones.bas;
+package Triones.bas;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import Coprize.bas.IDataStore;
 import Coprize.bas.IField;
@@ -60,7 +61,7 @@ import Coprize.bas.ISheet;
  * @author mujun
  * 
  */
-public class DefaultDataStore extends DefaultExtend implements IDataStore {
+public class DataStore extends Extend implements IDataStore {
 
 	/**
 	 * 数据存储对象名称（创建于 2012.05.23）.
@@ -86,10 +87,7 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	 * <pre>
 	 * 	创建于 2012.05.23.
 	 * </pre>
-	 * 
 	 * </DL>
-	 * 
-	 * @see Coprize.bas.IDataStore#_name
 	 */
 	private String _name = "";
 
@@ -153,7 +151,7 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	 * 
 	 * @see Coprize.bas.IDataStore#_ISheets
 	 */
-	private DefaultSheet _primarySheets = new DefaultSheet();
+	private Sheet _primarySheets = new Sheet();
 
 	/**
 	 * 数据存储对象的deleted工作区（创建于 2012-5-27）.
@@ -184,7 +182,7 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	 * 
 	 * @see Coprize.bas.IDataStore#_ISheets
 	 */
-	private DefaultSheet _deletedSheets = new DefaultSheet();
+	private Sheet _deletedSheets = new Sheet();
 
 	/**
 	 * 数据存储对象的filtered工作区（创建于 2012-5-27）.
@@ -215,7 +213,7 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	 * 
 	 * @see Coprize.bas.IDataStore#_ISheets
 	 */
-	private DefaultSheet _filteredSheets = new DefaultSheet();
+	private Sheet _filteredSheets = new Sheet();
 
 	/**
 	 * DefaultStore 的列column的数据集（创建于 2012-5-27）.
@@ -243,7 +241,7 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	 * 
 	 * </DL>
 	 */
-	private List<DefaultField> _columns = new ArrayList<DefaultField>();
+	private List<Field> _columns = new ArrayList<Field>();
 
 	/**
 	 * 设置业务数据名称（创建于 2012-5-27）.
@@ -448,9 +446,7 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	@Override
 	public int SetRowAttritbute(int index, String attrName, Object attrValue)
 	{
-		if(index < 1 ||index >ColumnCount()){
-			return -1;
-		}
+		if(index < 1 ||index >ColumnCount()) return -1;
 		_modifty = true;
 		return _primarySheets.SetRowAttritbute(index, attrName, attrValue);
 	}
@@ -490,9 +486,7 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	@Override
 	public Object GetRowAttritbute(int index, String attrName)
 	{
-		if(index < 1 ||index >ColumnCount()){
-			return null;
-		}
+		if(index < 1 ||index >ColumnCount()) return null;
 		return _primarySheets.GetRowAttritbute(index, attrName);
 	}
 
@@ -611,10 +605,7 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	@Override
 	public int InsertRow(int index)
 	{
-		if (index < 0)
-		{
-			return index;
-		}
+		if (index < 0) return -1;
 		_modifty = true;
 		return _primarySheets.AddRow(index, null);
 	}
@@ -655,15 +646,9 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	@Override
 	public int DeleteRow(int index)
 	{
-		if (index < 1 )
-		{
-			return -1;
-		}
+		if (index < 1 ) return -1;
 		IRow delRow = _primarySheets.Row(index);
-		if(null == delRow)
-		{
-			return -1;
-		}
+		if(null == delRow) return -1;
 		_modifty = true;
 		delRow.SetAttribute("STATUS", "Deleted");
 		_deletedSheets.AddRow(0, delRow);
@@ -767,13 +752,11 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	{
 		IField lfield = _primarySheets.Item(rowIndex, colIndex);
 		
-		if(null == lfield)
-		{
-			return -1;
-		}
+		if(null == lfield) return -1;
 		
 		if (null != lfield.GetValue()) // 如果给item原来有值，则将原来的值保存到oldvalue
 		{
+			_primarySheets.Row(rowIndex).SetAttribute("STATUS", "Modified");
 			lfield.SetAttribute("oldvalue", lfield.GetValue());
 		}
 		_modifty = true;
@@ -818,11 +801,7 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	public Object GetItemValue(int rowIndex, int colIndex)
 	{
 		IField lfield = _primarySheets.Item(rowIndex, colIndex);
-		
-		if(null == lfield)
-		{
-			return null;
-		}
+		if(null == lfield) return null;
 		return lfield.GetValue();
 	}
 
@@ -835,8 +814,10 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	 * 
 	 * <pre>
 	 * 	option=true 将Primary区中的已更新数据设为正式数据
-	 * 		操作为：将有 oldvalue 替换新数据
+	 * 		操作为：根据行状态（New ! Modified ! Deleted ! NnChanged !）来执行操作
+	 * 		将modified 的数据的oldvalue数据换成value ，全部的行状态改为 nuchanged
 	 * 	option=false 将Primary区中的已更新数据恢复成原来状态
+	 * 		将modified 的数据的value数据换成oldvalue ，全部的行状态改为 nuchanged
 	 * </pre>
 	 * 
 	 * <DT><B>示例：</B>
@@ -862,7 +843,23 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	@Override
 	public int Accept(boolean option)
 	{
-
+		Iterator<Row> it = _primarySheets.iterator();
+		while(it.hasNext())
+		{
+			Row lrow = it.next();
+			if("Modified".equals(lrow.GetAttribute("STATUS")))  //如果行状态标识：已经改变
+			{
+					for(int i=1;i<lrow.FieldCount();i++)
+					{
+						IField lfield =lrow.Field(i);
+						Object oldvalue =lfield.GetAttribute("oldvalue");
+						if( null != oldvalue )
+							if(!option) lfield.SetValue(oldvalue);
+							else lfield.SetAttribute("oldvalue", lfield.GetValue()); //接受更新
+					}
+			}
+			lrow.SetAttribute("STATUS", "NnChanged");
+		}
 		return 0;
 	}
 
@@ -899,25 +896,27 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	 * @see Coprize.bas.IDataStore#Reset(java.lang.String)
 	 */
 	@Override
-	public int Reset(String SheetName)
+	public int Reset(String sheetName)
 	{
-		if (null == SheetName || "".equals(SheetName))
+		String[] ls_SheetName = {"Primary!","Deleted!","Filtered!"};
+		int j=0;
+		for(int i=0;i<ls_SheetName.length;i++)
 		{
-				return _primarySheets.Clear();
+			if(sheetName.indexOf(ls_SheetName[i])>=0||sheetName.equals("*")) 
+			{	
+				GetSheetByName(ls_SheetName[i]).Clear();
+				j++;
+			}
 		}
-		else
-			if ("*".equals(SheetName))
-			{
-				return _primarySheets.Clear() + _deletedSheets.Clear()
-						+ _filteredSheets.Clear();
-			}
-			else
-			{
-				DefaultSheet lsheet = GetSheetByName(SheetName);
-				if (lsheet != null) return lsheet.Clear();
-				else
-					return -1;
-			}
+		return j;
+		/*
+//		if (null == SheetName || "".equals(SheetName)) return _primarySheets.Clear();
+//		if ("*".equals(SheetName))
+//			return _primarySheets.Clear() + _deletedSheets.Clear() + _filteredSheets.Clear();
+//		DefaultSheet lsheet = GetSheetByName(SheetName);
+//		if (lsheet != null) return lsheet.Clear();
+//		return -1;*/
+			
 	}
 
 	/**
@@ -995,18 +994,9 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	public int DiscardRow(String sheet, int index)
 	{
 		ISheet curSheet = GetSheetByName(sheet);
-		if (null == curSheet)
-		{
-			return -1;
-		}
-		if (index < 0)
-		{
-			return index;
-		}
-		else
-		{
-			return curSheet.RemoveRow(index);
-		}
+		if (null == curSheet) return -1;
+		_modifty = true;
+		return curSheet.RemoveRow(index);
 	}
 
 	/**
@@ -1058,7 +1048,7 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 
 		if (lrs == rowNum)
 		{
-			DefaultSheet srcSheet = GetSheetByName(sourceSheet);
+			Sheet srcSheet = GetSheetByName(sourceSheet);
 			int rmres = 0;
 			for (int i = 0; i < rowNum; i++)
 			{
@@ -1117,14 +1107,10 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	public int CopyRow(String sourceSheet, int rowIndex, int rowNum,
 			String tagetSheet, int tagetIndex)
 	{
-		DefaultSheet srcSheet = GetSheetByName(sourceSheet);
-		DefaultSheet tagSheet = GetSheetByName(tagetSheet);
+		Sheet srcSheet = GetSheetByName(sourceSheet);
+		Sheet tagSheet = GetSheetByName(tagetSheet);
 
-		if (null == srcSheet || null == tagSheet || rowIndex < 1 || rowNum < 0)
-		{
-			return -1;
-		}
-
+		if (null == srcSheet || null == tagSheet || rowIndex < 1 || rowNum < 0) return -1;
 		try
 		{
 			for (int i = 0; i < rowNum; i++)
@@ -1133,6 +1119,7 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 						srcSheet.Row(rowIndex + i)); // 如果tagetIndex ==0
 														// 则每次在tagSheet 的末尾加入
 			}
+			_modifty = true;
 			return rowNum;
 		}
 		catch (Exception e)
@@ -1188,12 +1175,12 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	{
 		try
 		{
-			DefaultSheet srcSheet = ((DefaultDataStore) dataStore)
+			Sheet srcSheet = ((DataStore) dataStore)
 					.GetSheetByName(sourceSheet);
 			if (copy)
 			{
 				SetSheetByName(targetSheet,
-						(DefaultSheet) srcSheet.CloneObject());
+						(Sheet) srcSheet.CloneObject());
 			}
 			else
 			{
@@ -1241,26 +1228,12 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	 * @return 如果没有找到name 返回 null;
 	 * @see package.class#method
 	 */
-	private DefaultSheet GetSheetByName(String name)
+	private Sheet GetSheetByName(String name)
 	{
-		if ("primary".equals(name.toLowerCase()))
-		{
-			return _primarySheets;
-		}
-		else
-			if ("deleted".equals(name.toLowerCase()))
-			{
-				return _deletedSheets;
-			}
-			else
-				if ("filtered".equals(name.toLowerCase()))
-				{
-					return _filteredSheets;
-				}
-				else
-				{
-					return null;
-				}
+		if ("primary".equals(name.toLowerCase())) return _primarySheets;
+		if ("deleted".equals(name.toLowerCase())) return _deletedSheets;
+		if ("filtered".equals(name.toLowerCase())) return _filteredSheets;
+		return null;
 
 	}
 
@@ -1298,7 +1271,7 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	 * @return
 	 * @see package.class#method
 	 */
-	private int SetSheetByName(String name, DefaultSheet tagSheet)
+	private int SetSheetByName(String name, Sheet tagSheet)
 	{
 		if ("primary".equals(name.toLowerCase()))
 		{
@@ -1364,8 +1337,10 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	public int SetItemAttritbute(int row, int col, String attrName,
 			Object attrValue)
 	{
-
-		return 0;
+		IField lfield = _primarySheets.Item(row, col);
+		if(null == lfield) return -1;
+		_modifty = true;
+		return lfield.SetAttribute(attrName, attrValue);
 	}
 
 	/**
@@ -1408,7 +1383,9 @@ public class DefaultDataStore extends DefaultExtend implements IDataStore {
 	@Override
 	public Object GetItemAttritbute(int row, int col, String attrName)
 	{
-
-		return null;
+		IField lfield = _primarySheets.Item(row, col);
+		if(null == lfield) return -1;
+		_modifty = true;
+		return lfield.GetAttribute(attrName);
 	}
 }
